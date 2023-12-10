@@ -1,32 +1,5 @@
-import re
 import os, sys
-
-def get_script_path():
-    return os.path.dirname(os.path.realpath(sys.argv[0]))
-
-
-class Position:
-    def __init__(self, row, start_col, end_col, val):
-        self.row = row
-        self.start_col = start_col
-        self.end_col = end_col
-        self.val = val
-
-class Number(Position):
-    def __repr__(self):
-        return f"({self.val}, r={self.row}, c={self.start_col}-{self.end_col})"
-
-class Symbol(Position):
-    def __init__(self, row, col, val):
-        self.row = row
-        self.start_col = col
-        self.end_col = col
-        self.col = col
-        self.val = val
-
-    def __repr__(self):
-        return f"({self.val}, r={self.row}, c={self.start_col})"
-
+from Position import Position, Symbol, Number
 
 
 def is_adjacent_to_symbol(num, sym_row):
@@ -41,7 +14,7 @@ def is_adjacent_to_symbol(num, sym_row):
 
         # Less than 1 unit from either end of the word
         if min(start_dist, end_dist) <= 1:
-            print(f"{num} due to {sym}")
+            # print(f"{num} due to {sym}")
             return True
         
     return False
@@ -62,7 +35,7 @@ def find_adjacents(target: Position, pos_row: [Position], count = 1):
 
         # Less than 1 unit from either end of the word
         if min(start_dist, end_dist) <= 1:
-            print(f"{target} adj to {other}")
+            # print(f"{target} adj to {other}")
             adj.append(other)
             if count > -1 and len(adj) >= count:
                 break
@@ -115,7 +88,6 @@ def sum_of_part_numbers(fileaddr):
     valid_nums = []
     all_numbers, all_symbols, num_lines = read_schematic(fileaddr)
     all_symbols = group_by_row(all_symbols, num_lines)
-    print(all_symbols)
 
     for num in all_numbers:
         # Consider the three rows which have a vertical distance <= 1 from the symbol 
@@ -127,8 +99,6 @@ def sum_of_part_numbers(fileaddr):
                 valid_nums.append(int(num.val))
                 break
             
-    # valid_nums = set(valid_nums)        # Take unique vals only
-    print("Valid:", valid_nums)
     return sum(valid_nums)
 
 
@@ -162,16 +132,16 @@ def sum_of_gear_ratios(fileaddr):
 
 if __name__ == '__main__':
     args = sys.argv[1:]
-    filename = args[0]
     part = args[1]
-    fileaddr = get_script_path() + "\\" + args[0]
+    fileaddr = os.path.dirname(os.path.realpath(sys.argv[0])) + "\\" + args[0]
 
     if os.path.exists(fileaddr):
         if (part == '1'):
             result = sum_of_part_numbers(fileaddr)
         else:
             result = sum_of_gear_ratios(fileaddr)
-        print("Result:",result)
+
+        print("Result:", result)
     else:
         print(f"Could not find file at location {fileaddr}")
     

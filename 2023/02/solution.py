@@ -1,53 +1,8 @@
 import re
 import os, sys
 
-def get_script_path():
-    return os.path.dirname(os.path.realpath(sys.argv[0]))
-
-class BoxColors:
-    def __init__(self, r, g, b):
-        self.r = r
-        self.g = g
-        self.b = b
-    
-    def __repr__(self):
-        return f"({self.r}R, {self.g}G, {self.b}B)"
-    
-    def exceeds(self, other):
-        return self.r > other.r or self.g > other.g or self.b > other.b
-    
-    def max_with(self, other):
-        self.r = max(self.r, other.r)
-        self.g = max(self.g, other.g)
-        self.b = max(self.b, other.b)
-
-    def power(self):
-        return self.r * self.g * self.b
-
-
-class Game:
-    def __init__(self, id, cycles):
-        self.id = id
-        self.cycles = cycles
-    
-    def __str__(self):
-        return f"Game #{self.id}: {self.cycles}"
-    
-    def is_possible(self, max_box_colors):
-        for colors in self.cycles:
-            if colors.exceeds(max_box_colors):
-                return False
-            
-        return True
-
-    def compute_power(self):
-        req_colors = BoxColors(0,0,0)
-        for cycle in self.cycles:
-            req_colors.max_with(cycle)
-        power = req_colors.power()
-        # print(self, "has power:", power)
-        return power
-
+from BoxColors import BoxColors
+from Game import Game
 
 def parse_color_count(full_text, pattern_to_find):
     match = re.search(pattern_to_find, full_text)
@@ -115,7 +70,7 @@ if __name__ == '__main__':
     args = sys.argv[1:]
     filename = args[0]
     part = args[1]
-    fileaddr = get_script_path() + "\\" + args[0]
+    fileaddr = os.path.dirname(os.path.realpath(sys.argv[0])) + "\\" + args[0]
 
     if os.path.exists(fileaddr):
         games = parse_games(fileaddr)
