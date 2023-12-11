@@ -2,12 +2,23 @@ import sys, os
 import re
 
 
+def read_file(fileaddr):
+    lines = []
+    with open(fileaddr, "r") as file:
+        lines = file.readlines()
+    return lines
+
+
+
+
+## Solve Part One
 def part_one(fileaddr):
-    ## Solve Part One
+    lines = read_file(fileaddr)
     return
 
+
+## Solve Part Two
 def part_two(fileaddr):
-    ## Solve Part Two
     return
 
 
