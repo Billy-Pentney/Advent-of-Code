@@ -1,0 +1,2 @@
+Comet: 14 km/s, 10, 127
+Dancer: 16 km/s, 11, 162

@@ -1,0 +1,9 @@
+Vixen: 19 km/s, 7, 124
+Rudolph: 3 km/s, 15, 28
+Donner: 19 km/s, 9, 164
+Blitzen: 19 km/s, 9, 158
+Comet: 13 km/s, 7, 82
+Cupid: 25 km/s, 6, 145
+Dasher: 14 km/s, 3, 38
+Dancer: 3 km/s, 16, 37
+Prancer: 25 km/s, 6, 143
