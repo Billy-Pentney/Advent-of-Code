@@ -66,50 +66,76 @@ verbose = 0
 
 
 def arrangements_three(line, counts, i=0, num_hash = 0, count_i = 0):
-    print("     " + "".join(line[:i])+"|"+"".join(line[i+1:]))
+    # print("     " + "".join(line[:i])+"|"+"".join(line[i:]))
+    # print("Expecting:", counts[count_i:])
 
     arranges = 0
      
-    if i == len(line)-1:
-        if count_i == len(counts)-1:
+    if i == len(line):
+        if count_i == len(counts):
+            # print("".join(line))
             return 1
-        elif counts[count_i] == num_hash and len(counts) == 1:
+        elif counts[count_i] == num_hash and len(counts)-count_i == 1:
+            # print("".join(line))
             return 1
 
         return 0
+    
 
     char = line[i]
 
-    # No more counts required
-    if count_i == len(counts)-1:
-        # Any more hashes would be seen in counts
-        if char == '#':
-            return 0
-        arranges = arrangements_three(line, counts, i+1, num_hash=0, count_i=count_i)       
-         
-    elif char == '.':
+    # No more hashes expected
+    if count_i == len(counts):
+        for j in range(i, len(line)):
+            if line[j] == '#':
+                # Doesn't match counts
+                return 0
+        # Single configuration (with all following '?' == '.') 
+        return 1
+    
+
+    min_spaces_required = sum(counts[count_i:]) + len(counts[count_i:])-1 - num_hash
+    actual_spaces_left = len(line) - (i-1)
+    if actual_spaces_left < min_spaces_required:
+        # l = "".join(line[i:])
+        # print(f"{l}, needed: {min_spaces_required} spaces for {counts[count_i:]}; have: {actual_spaces_left}")
+        return 0
+
+    if char == '.':
+        if num_hash == 0:
+            arranges = arrangements_three(line, counts, i+1, num_hash=0, count_i=count_i)
         # Reset the hash number
-        if num_hash > 0 and num_hash != counts[count_i]:
-            return 0
-        arranges = arrangements_three(line, counts, i+1, num_hash=0, count_i=count_i+1) 
+        else:
+            if num_hash != counts[count_i]:
+                return 0
+            arranges = arrangements_three(line, counts, i+1, num_hash=0, count_i=count_i+1) 
 
     elif char == '#':
+        num_hash += 1
+
+        # Consume consecutive hashes
+        while i < len(line)-1 and line[i+1] == '#':
+            i += 1
+            num_hash += 1
+
         # Too many '#'s consecutively
-        if num_hash >= counts[count_i]:
+        if num_hash > counts[count_i]:
             return 0
-        arranges = arrangements_three(line, counts, i+1, num_hash=num_hash+1, count_i=count_i)
+        
+        arranges = arrangements_three(line, counts, i+1, num_hash=num_hash, count_i=count_i)
 
     else:
         # Have a '?'
 
         if num_hash > 0:
+            # newline = line.copy()
             if num_hash < counts[count_i]:
                 # Need to increase consecutive count of '#'
-                line[i] = '#'
+                # newline[i] = '#'
                 arranges = arrangements_three(line, counts, i+1, num_hash=num_hash+1, count_i=count_i)
             elif num_hash == counts[count_i]:
                 # Have the exact count of '#'; need to end block with '.'
-                line[i] = '.'
+                # newline[i] = '.'
                 arranges = arrangements_three(line, counts, i+1, num_hash=0, count_i=count_i+1)
             else:
                 # Too many consecutive hashes, so fail
@@ -118,11 +144,9 @@ def arrangements_three(line, counts, i=0, num_hash = 0, count_i = 0):
             # Bifurcation
 
             # Treat ? as '.'
-            line[i] = '.'
             arranges += arrangements_three(line, counts, i+1, num_hash=0, count_i=count_i)
 
             # Treat ? as '#'
-            line[i] = '#'
             arranges += arrangements_three(line, counts, i+1, num_hash=num_hash+1, count_i=count_i)
     
     return arranges
@@ -238,29 +262,35 @@ def duplicate_list(l, k, merge_at_boundary=False):
     return l2
 
 
+def duplicate_str(input: str, k: int):
+    s2 = input
+    for i in range(k-1):
+        # ? is the delimiter
+        s2 += '?' + input
+    return s2
+
+
+def expand_rle_row(splits, k):
+    return [(duplicate_list(s, k, True), duplicate_list(c, k)) for s,c in splits]
+
 def expand_each_row(splits, k):
-    expanded_splits = [(duplicate_list(s, k, True), duplicate_list(c, k)) for s,c in splits]
-    return expanded_splits
+    return [(duplicate_str(s, k), duplicate_list(c, k)) for s,c in splits]
+
 
 
 def sum_arrangements(fileaddr, part='1'):
     lines = read_file(fileaddr)
-    # lines = ['??#???#?? 1,2,3']
-            # #.##.###.
-            # #.##..###
     splits = split_lines(lines, apply_rle=False)
 
     num_arranges = 0
 
-    # if part == '2':
-    #     splits = expand_each_row(splits, 2)
-        # print(splits)
+    if part == '2':
+        splits = expand_each_row(splits, 5)
 
-    for i, split in enumerate(splits):
-        line, counts = split
-        # print(line)
+    for i, (line, counts) in enumerate(splits):
+        print(f"Line {i}: \"{line}\", {counts}")
         arranges = arrangements_three(list(line), counts)
-        print(f"Arrangements of \"{line}\" ({counts}): {arranges}")
+        print(f" >> {arranges}")
         num_arranges += arranges
 
     return num_arranges
