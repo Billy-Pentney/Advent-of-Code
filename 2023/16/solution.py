@@ -93,12 +93,8 @@ def find_next_beam_states(lines, beam_state):
     return next_states
 
 
-
-## Solve Part One
-def part_one(fileaddr):
-    lines = read_file(fileaddr)
-
-    beams = [((-1,0),EAST)]
+def count_energized_cells(lines, start_state, show_result=False):
+    beams = [start_state]
     energized_states = set()
     
     num_energized = 0
@@ -114,7 +110,7 @@ def part_one(fileaddr):
 
         # Mark this cell as having been touched by the beam
         x,y = beam_state[0]
-        if x >= 0 and new_map[y][x] == '.':
+        if x > -1 and x < len(lines[0]) and y > -1 and y < len(lines) and new_map[y][x] == '.':
             new_map[y][x] = '#'
             num_energized += 1
 
@@ -123,17 +119,58 @@ def part_one(fileaddr):
                 # print("Beam visited", state)
                 beams.append(state)
 
-    
-    print("Energized map:")
-    for line in new_map:
-        print("     ","".join(line))
+    if show_result:
+        print("Energized map:")
+        for line in new_map:
+            print("     ","".join(line))
 
     return num_energized
 
 
+## Solve Part One
+def part_one(fileaddr):
+    lines = read_file(fileaddr)
+    return count_energized_cells(lines, ((-1,0), EAST), True)
+
+
 ## Solve Part Two
 def part_two(fileaddr):
-    return
+    lines = read_file(fileaddr)
+
+    max_energized = 0
+
+    width = len(lines[0])
+    height = len(lines)
+
+    # North side
+    for x in range(0, width):
+        num_energized = count_energized_cells(lines, ((x,-1), SOUTH), False)
+        max_energized = max(max_energized, num_energized)
+    
+    print("Tried all North side")
+
+    # East side:
+    for y in range(0, height):
+        num_energized = count_energized_cells(lines, ((width,y), WEST), False)
+        max_energized = max(max_energized, num_energized)
+
+    print("Tried all East side")
+
+    # South side
+    for x in range(0, width):
+        num_energized = count_energized_cells(lines, ((x,height), NORTH), False)
+        max_energized = max(max_energized, num_energized)
+
+    print("Tried all South side")
+
+    # West side:
+    for y in range(0, height):
+        num_energized = count_energized_cells(lines, ((-1,y), EAST), False)
+        max_energized = max(max_energized, num_energized)
+
+    print("Tried all West side")
+
+    return max_energized
 
 
 
