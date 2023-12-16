@@ -2,6 +2,14 @@ import os, sys
 
 from distutils.dir_util import copy_tree
 
+""" Generates a new directory and starting files for a specified day.
+    Can be called as follows:
+
+        "python gen_day.py XX"
+
+    where XX is an integer in the range (1-31)
+"""
+
 if __name__=='__main__':
     args = sys.argv[1:]
     daynum = args[0]
