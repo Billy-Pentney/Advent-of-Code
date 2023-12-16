@@ -27,6 +27,13 @@ RD = 'F'
 RU = 'L'
 
 
+def read_file(fileaddr):
+    lines = []
+    with open(fileaddr, "r") as file:
+        lines = file.readlines()
+    return [line.replace("\n", "") for line in lines]
+
+
 def get_enterable_neighbours(lines, start_pos, prev_pos=(-1,-1)):
     nbs = []
     (row, col) = start_pos
@@ -64,32 +71,25 @@ def get_next_cell_on_path(curr, curr_pos, prev_pos=(-1,-1)):
     return [nb for nb in candidates if nb[0] != prow or nb[1] != pcol]
 
 
-def part_one(fileaddr):
-    lines = []
-    with open(fileaddr, "r") as file:
-        lines = file.readlines()
-
-    start_pos = None
+def find_start_pos(lines):
     for r, line in enumerate(lines):
         for c, cell in enumerate(line):
             if (cell == 'S'):
                 start_pos = (r,c)
+    return start_pos
 
-    print("Start:", start_pos)
 
+def run_dfs_on_path(lines, start_pos):
     nbs = get_enterable_neighbours(lines, start_pos)
     # Stores tuples of (cell, distance, previous cell) which should be considered by DFS
-    to_check = []
-    
-    for nx, ny, move in nbs:
-        to_check.append(((nx,ny), 1, start_pos))
-
+    frontier = [((nx,ny), 1, start_pos) for nx, ny, move in nbs]
     # For each cell in the loop, store its shortest distance to S
     dist_map = { start_pos: 0 }
 
-    while len(to_check) > 0:
-        (curr, d, prev) = to_check[0]
-        to_check = to_check[1:]
+    while len(frontier) > 0:
+        # Remove the first element in the queue
+        (curr, d, prev) = frontier[0]
+        frontier = frontier[1:]
 
         # New cell (not seen in loop)
         if curr not in dist_map.keys():
@@ -98,21 +98,85 @@ def part_one(fileaddr):
             break
 
         curr_sym = lines[curr[0]][curr[1]]
+        for (x,y,move) in get_next_cell_on_path(curr_sym, curr, prev):
+            frontier.append(((x,y), d+1, curr))
 
-        next = get_next_cell_on_path(curr_sym, curr, prev)
-        # print(next)
-        for (x,y,move) in next:
-            # print(move)
-            to_check.append(((x,y), d+1, curr))
+    return dist_map
 
+
+def part_one(fileaddr):
+    lines = read_file(fileaddr)
+    start_pos = find_start_pos(lines)
+    print("Start:", start_pos)
+    dist_map = run_dfs_on_path(lines, start_pos)
     return max(dist_map.values())
+
+
+def identify_outside_loop(lines, loop):
+    # Identify all cells which are not part of the loop
+    non_loop_cells = [] 
+    for r,row in enumerate(lines):
+        for c,cell in enumerate(row):
+            if (r,c) not in loop:
+                non_loop_cells.append((r,c))
+
+    to_check = []
+    visited = {}
+
+    # Get all non-loop cells on the outer edge of the grid
+    for cell in non_loop_cells:
+        if cell[0] == 0 or cell[0] == len(lines)-1 or cell[1] == 0 or cell[1] == len(lines[0])-1:
+            to_check.append(cell)
+
+    while len(to_check) > 0:
+        curr = to_check[0]
+        to_check = to_check[1:]
+        visited[nb] = True
+
+        for nb in get_all_neighbours(curr):
+            if not visited[nb] and nb not in loop:
+                to_check.append(nb)
+
+    
+
+    inner_cells = [cell for cell in non_loop_cells if not visited[cell]]
+    return inner_cells
+
+
+    
+    
+
 
 
 
 def part_two(fileaddr):
-    ## Solve Part Two
-    return
+    lines = read_file(fileaddr)
+    start_pos = find_start_pos(lines)
+    print("Start:", start_pos)
+    dist_map = run_dfs_on_path(lines, start_pos)
 
+    path = list(dist_map.keys())
+    print(path)
+
+    elevation = []
+
+    for r,row in enumerate(lines):
+        row_elevation = []
+        curr_elevation = 0
+        for c,cell in enumerate(row):
+            if (r,c) in dist_map:
+                if curr_elevation == 0:
+                    curr_elevation = 1
+            elif curr_elevation == 1:
+                curr_elevation = 0
+
+            row_elevation.append(curr_elevation)
+        elevation.append(row_elevation)
+
+    for row in elevation:
+        print(row)
+                
+    return 0
 
 
 
