@@ -86,6 +86,29 @@ def run_dfs_on_path(lines, start_pos):
     # For each cell in the loop, store its shortest distance to S
     dist_map = { start_pos: 0 }
 
+    moves = [move for nx,ny,move in nbs]
+    # print(moves)
+
+    start_char = None
+    if 'RIGHT' in moves:
+        if 'DOWN' in moves:
+            start_char = RD
+        elif 'UP' in moves:
+            start_char = RU
+        else:
+            start_char = HPIPE
+    elif 'LEFT' in moves:
+        if 'DOWN' in moves:
+            start_char = LD
+        elif 'UP' in moves:
+            start_char = LU
+    else:
+        start_char = VPIPE
+
+    start_line = lines[start_pos[0]]
+    print("SWITCHED S ->", start_char)
+    lines[start_pos[0]] = list(str(start_line[:start_pos[1]]) + start_char + str(start_line[start_pos[1]+1:]))
+
     while len(frontier) > 0:
         # Remove the first element in the queue
         (curr, d, prev) = frontier[0]
@@ -98,7 +121,7 @@ def run_dfs_on_path(lines, start_pos):
             break
 
         curr_sym = lines[curr[0]][curr[1]]
-        for (x,y,move) in get_next_cell_on_path(curr_sym, curr, prev):
+        for (x, y, move) in get_next_cell_on_path(curr_sym, curr, prev):
             frontier.append(((x,y), d+1, curr))
 
     return dist_map
@@ -112,39 +135,208 @@ def part_one(fileaddr):
     return max(dist_map.values())
 
 
-def identify_outside_loop(lines, loop):
-    # Identify all cells which are not part of the loop
-    non_loop_cells = [] 
-    for r,row in enumerate(lines):
-        for c,cell in enumerate(row):
-            if (r,c) not in loop:
-                non_loop_cells.append((r,c))
-
-    to_check = []
-    visited = {}
-
-    # Get all non-loop cells on the outer edge of the grid
-    for cell in non_loop_cells:
-        if cell[0] == 0 or cell[0] == len(lines)-1 or cell[1] == 0 or cell[1] == len(lines[0])-1:
-            to_check.append(cell)
-
-    while len(to_check) > 0:
-        curr = to_check[0]
-        to_check = to_check[1:]
-        visited[nb] = True
-
-        for nb in get_all_neighbours(curr):
-            if not visited[nb] and nb not in loop:
-                to_check.append(nb)
-
-    
-
-    inner_cells = [cell for cell in non_loop_cells if not visited[cell]]
-    return inner_cells
-
 
     
     
+def in_bounds(pt, lines):
+    return pt[0] >= 0 and pt[0] < len(lines[0]) and pt[1] >= 0 and pt[1] < len(lines)
+
+
+def deduce_dir(path, lines):
+
+    pt1 = path[0]
+    pt2 = path[1]
+    sym_1 = lines[pt1[0]][pt1[1]]
+    sym_2 = lines[pt2[0]][pt2[1]]
+    i = 1
+
+    while sym_1 == sym_2:
+        pt1 = pt2
+        i += 1
+        pt2 = path[i]
+        sym_1 = lines[pt1[0]][pt1[1]]
+        sym_2 = lines[pt2[0]][pt2[1]]
+
+    print(f"P1: {sym_1}, P2: {sym_2}")
+
+    # Assert: pt1 != pt2
+    if sym_1 == HPIPE:
+        if sym_2 == RD or sym_2 == RU:
+            return LEFT
+        else:
+            return RIGHT
+    elif sym_1 == VPIPE:
+        if sym_2 == LD or sym_2 == RD:
+            return UP
+        else:
+            return DOWN
+    elif sym_1 == RD:
+        if sym_2 == HPIPE or sym_2 == LU or sym_2 == LD:
+            return RIGHT
+        else:
+            return DOWN
+    elif sym_1 == LU:
+        if sym_2 == VPIPE or sym_2 == LD or sym_2 == RD:
+            return RIGHT
+        else:
+            return DOWN
+    elif sym_1 == LD:
+        if sym_2 == HPIPE or sym_2 == RU or sym_2 == RD:
+            return LEFT
+        else:
+            return DOWN
+    elif sym_1 == RU:
+        if sym_2 == VPIPE or sym_2 == LD or sym_2 == RD:
+            return UP
+        else:
+            return RIGHT 
+
+    
+        
+
+
+
+
+def is_clockwise(path, lines, start_dir):
+    r_turns = 0
+    dir = start_dir
+
+    for pos in path:
+        cell = lines[pos[0]][pos[1]]
+        if cell == RD:
+            if dir == UP:
+                r_turns += 1
+                dir = RIGHT
+            else:
+                r_turns -= 1
+                dir = DOWN
+        elif cell == RU:
+            if dir == DOWN:
+                r_turns -= 1
+                dir = RIGHT
+            else:
+                r_turns += 1
+                dir = UP
+        elif cell == LD:
+            if dir == RIGHT:
+                r_turns += 1
+                dir = DOWN
+            else:
+                r_turns -= 1
+                dir = LEFT
+        elif cell == LU:
+            if dir == RIGHT:
+                r_turns -= 1
+                dir = UP
+            else:
+                r_turns += 1
+                dir = LEFT
+
+    print(r_turns)
+    return r_turns > 0
+
+
+def find_inside_outside(lines, path):
+    dir = deduce_dir(path, lines)
+    print("Start:",dir)
+    
+    offset_path = path[1:]
+    offset_path.append(path[0])
+
+    clockwise = is_clockwise(offset_path, lines, dir)
+    print("Clockwise:", clockwise)
+
+    all_inside = set()
+    all_outside = set()
+
+    for pos in offset_path:
+        cell = lines[pos[0]][pos[1]]
+
+        W = (pos[0]-1, pos[1])
+        E = (pos[0]+1, pos[1])
+        N = (pos[0]  , pos[1]-1)
+        S = (pos[0]  , pos[1]+1)
+        NW = (pos[0]-1, pos[1]-1)
+        NE = (pos[0]+1, pos[1]-1)
+        SW = (pos[0]-1, pos[1]+1)
+        SE = (pos[0]+1, pos[1]+1)
+
+        inside = set()
+        outside = set()
+
+        print(cell)
+
+        if cell == '|':
+            if (dir == UP and clockwise) or (dir == DOWN and not clockwise):
+                inside.add(E)
+                outside.add(W)
+            else:
+                inside.add(W)
+                outside.add(E)
+        elif cell == '-':
+            if (dir == RIGHT and clockwise) or (dir == LEFT and not clockwise):
+                inside.add(S)
+                outside.add(N)
+            else:
+                inside.add(N)
+                outside.add(S)
+            
+        elif cell == 'F':
+            if dir == LEFT:
+                # Assume clockwise
+                inside = inside.union(set([W,NW,N]))
+                dir = DOWN
+                if not clockwise:
+                    inside, outside = outside, inside
+            else: # UP
+                outside = outside.union(set([W,NW,N]))
+                dir = RIGHT
+                if not clockwise:
+                    inside, outside = outside, inside
+        elif cell == 'J':
+            if dir == RIGHT:
+                inside = inside.union(set([S,SE,E]))
+                dir = UP
+                if not clockwise:
+                    inside, outside = outside, inside
+            else: # DOWN
+                outside = outside.union(set([S,SE,E]))
+                dir = LEFT
+                if not clockwise:
+                    inside,outside = outside,inside
+        elif cell == '7':
+            if dir == RIGHT:
+                outside = set([N,NE,E])
+                dir = DOWN
+                if not clockwise:
+                    inside, outside = outside, inside
+            else: # UP
+                inside = set([N,NE,E])
+                dir = LEFT
+                if not clockwise:
+                    inside,outside = outside,inside
+        elif cell == 'L':
+            if dir == DOWN:
+                inside = set([W,SW,S])
+                dir = RIGHT
+                if not clockwise:
+                    inside, outside = outside, inside
+            else: # LEFT
+                outside = set([W,SW,S])
+                dir = UP
+                if not clockwise:
+                    inside,outside = outside,inside
+
+        all_inside = all_inside.union([a for a in inside if in_bounds(a, lines) and a not in path])
+        all_outside = all_outside.union([b for b in outside if in_bounds(b, lines) and b not in path])
+
+        print("In:", all_inside)
+        print("Out:", all_outside)
+
+    print("In:", all_inside)
+    print("Out:", all_outside)
+
+    return all_inside, all_outside
 
 
 
@@ -154,29 +346,30 @@ def part_two(fileaddr):
     start_pos = find_start_pos(lines)
     print("Start:", start_pos)
     dist_map = run_dfs_on_path(lines, start_pos)
+    # for line in lines:
+    #     print("".join(line))
 
-    path = list(dist_map.keys())
+    unordered_path = list(dist_map.keys())
+    # print(path_alt)
+
+    path = [unordered_path[0]] 
+    path.extend(unordered_path[1::2])
+    path.extend(reversed(unordered_path[2::2]))
     print(path)
 
-    elevation = []
+    inside, outside = find_inside_outside(lines, path)
 
-    for r,row in enumerate(lines):
-        row_elevation = []
-        curr_elevation = 0
-        for c,cell in enumerate(row):
-            if (r,c) in dist_map:
-                if curr_elevation == 0:
-                    curr_elevation = 1
-            elif curr_elevation == 1:
-                curr_elevation = 0
+    new_grid = [['.' for i in range(0,len(line))] for line in lines]
+    for pt in inside:
+        new_grid[pt[0]][pt[1]] = 'I'
+    for pt in outside:
+        new_grid[pt[0]][pt[1]] = 'O'
 
-            row_elevation.append(curr_elevation)
-        elevation.append(row_elevation)
+    print("Result:")
+    for line in new_grid:
+        print("".join(line))
 
-    for row in elevation:
-        print(row)
-                
-    return 0
+    return len(inside)
 
 
 
