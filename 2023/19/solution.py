@@ -10,12 +10,7 @@ class Part:
         self.m = int(part_match.group(2))
         self.a = int(part_match.group(3))
         self.s = int(part_match.group(4))
-        self.values = {
-            'x': self.x,
-            'm': self.m,
-            'a': self.a,
-            's': self.s
-        }
+        self.values = {'x': self.x,'m': self.m,'a': self.a,'s': self.s}
     
     def sum_of_points(self):
         return self.x + self.m + self.a + self.s
@@ -43,16 +38,17 @@ class Rule:
         self.target_val = int(rule_match.group(3))
         self.next_workflow = rule_match.group(4)
 
+    # Returns true/false to indicate if the given value obeys this rule
     def compare_to_val(self, input_val):
         if self.comp_op == '<':
             return input_val < self.target_val
         elif self.comp_op == '>':
             return input_val > self.target_val
-        # elif self.comp_op == '=':
-        #     return input_val == self.target_val
         return False
 
-    def accept_ranges(self, ranges):
+    # Restrict the given dictionary of variable value-ranges to only the values which
+    # DO meet this rule's requirement
+    def pass_ranges(self, ranges):
         var_range = ranges[self.target_var]
         if self.comp_op == '>':
             ranges[self.target_var][0] = max(self.target_val+1, var_range[0])
@@ -60,13 +56,16 @@ class Rule:
             ranges[self.target_var][1] = min(self.target_val-1, var_range[1])
         return ranges
 
-    def reject_ranges(self, ranges):
+    # Restrict the given dictionary of variable value-ranges to only the values
+    # which do not meet this rule's requirement
+    def fail_ranges(self, ranges):
         var_range = ranges[self.target_var]
         if self.comp_op == '>':
             ranges[self.target_var][1] = min(self.target_val, var_range[1])
         else:
             ranges[self.target_var][0] = max(self.target_val, var_range[0])
         return ranges
+
 
     def matches(self, part: Part):
         part_val = part.get_attribute(self.target_var)
@@ -158,13 +157,18 @@ def part_one(fileaddr):
     return sum_acc_parts
 
 
+# Count the number of possible combinations of the values
 def count_combs_of_ranges(ranges):
     combs = 1
     for range_val in ranges.values():
+        # Include +1 since both endpoints can be used
         range = range_val[1]+1 - range_val[0]
+        # If the range is <0, then there are no suitable values for this variable, so combs=0
         combs *= max(0, range)
     return combs
 
+
+# Deep copy
 def copy_dict(d):
     d_copy = {}
     for key, val in d.items():
@@ -172,6 +176,7 @@ def copy_dict(d):
     return d_copy
 
 
+# Count the number of distinct combinations for the given ranges which are accepted
 def find_wf_proportion_accepted(wfs, wf_name, ranges):
     if wf_name == 'A':
         return count_combs_of_ranges(ranges)
@@ -181,10 +186,11 @@ def find_wf_proportion_accepted(wfs, wf_name, ranges):
     wf = wfs[wf_name]
 
     accepted = 0
-    # all_possible = count_combs_of_ranges(ranges)
 
     for rule in wf.rules:
+        # The ranges which pass this rule
         ranges_acc = rule.accept_ranges(copy_dict(ranges))
+        # The ranges which fail this rule
         ranges_rej = rule.reject_ranges(copy_dict(ranges))
 
         print(f"Applying rule {rule} to get acc: {ranges_acc}")
@@ -197,7 +203,7 @@ def find_wf_proportion_accepted(wfs, wf_name, ranges):
         ranges = ranges_rej
 
         for val in ranges.values():
-            # No valid values for this range
+            # No valid values for this range, so we cannot continue
             if val[1] < val[0]:
                 return accepted        
 
@@ -208,13 +214,8 @@ def find_wf_proportion_accepted(wfs, wf_name, ranges):
 ## Solve Part Two
 def part_two(fileaddr):
     wfs, _ = read_file(fileaddr)
-    ranges = {
-        'x': [1,4000],
-        'm': [1,4000],
-        'a': [1,4000],
-        's': [1,4000]
-    }
-
+    # Initial lower/upper bounds (inclusive) for each value
+    ranges = {'x': [1,4000],'m': [1,4000],'a': [1,4000],'s': [1,4000]}
     return find_wf_proportion_accepted(wfs, 'in', ranges)
 
 
