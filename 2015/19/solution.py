@@ -70,7 +70,7 @@ reduction_target = "e"
 min_steps = { reduction_target: 0 }
 
 
-def reduce_to(input, rules):
+def reduce_to(input: str, rules):
     if input == reduction_target:
         return 0
     
@@ -84,20 +84,20 @@ def reduce_to(input, rules):
     for key, repls in rules.items():
         for repl in repls:
             if repl in input:
+                all_repls.append((repl, key))
                 if len(repl) > max_len:
-                    all_repls = [(repl,key)]
                     max_len = len(repl)
-                elif len(repl) == max_len:
-                    all_repls.append((repl, key))
 
     # Sort by descending replacement length
-    # all_repls = sorted(all_repls, key=lambda r: len(r[0]), reverse=True)
+    all_repls = sorted(all_repls, key=lambda r: len(r[0]), reverse=True)
+
+    max_len_repls = [r for r in all_repls if len(r[0]) == max_len]
 
     # print(f" >> Found {len(max_repls)} applicable rule(s)!")
     # Try all suitable replacements recursively
-    for repl, key in all_repls:
+    for repl, key in max_len_repls:
         # print(f" >> Apply: {repl} -> {key}")
-        new_input = input.replace(repl, key)
+        new_input = input.replace(repl, key, 1)
 
         if new_input in min_steps.keys():
             steps_req = min_steps[new_input]
@@ -114,7 +114,27 @@ def reduce_to(input, rules):
         if min_steps[input] is None or steps_req < min_steps[input]:
             min_steps[input] = steps_req
 
-    # if min_steps[input] is None:
+    if min_steps[input] is None:
+        # print("Last Resort!")
+        other_repls = [r for r in all_repls if len(r[0]) < max_len]
+        for repl, key in other_repls:
+            # print(f" >> Apply: {repl} -> {key}")
+            new_input = input.replace(repl, key)
+
+            if new_input in min_steps.keys():
+                steps_req = min_steps[new_input]
+            else:
+                steps_req = reduce_to(new_input, rules)
+
+            if steps_req is None:
+                # Cannot reach target from this state
+                continue
+            else:
+                # Include this replacement step
+                steps_req += 1
+
+            if min_steps[input] is None or steps_req < min_steps[input]:
+                min_steps[input] = steps_req
     #     print(f"Cannot reduce {input} to {reduction_target}")
 
     return min_steps[input]
