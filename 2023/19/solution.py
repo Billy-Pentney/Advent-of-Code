@@ -189,9 +189,9 @@ def find_wf_proportion_accepted(wfs, wf_name, ranges):
 
     for rule in wf.rules:
         # The ranges which pass this rule
-        ranges_acc = rule.accept_ranges(copy_dict(ranges))
+        ranges_acc = rule.pass_ranges(copy_dict(ranges))
         # The ranges which fail this rule
-        ranges_rej = rule.reject_ranges(copy_dict(ranges))
+        ranges_rej = rule.fail_ranges(copy_dict(ranges))
 
         print(f"Applying rule {rule} to get acc: {ranges_acc}")
 
