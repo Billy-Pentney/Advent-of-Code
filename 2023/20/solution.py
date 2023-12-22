@@ -20,6 +20,11 @@ class MyModule:
     def __repr__(self):
         return f"Module {self.name} outputs: {self.output_modules}"
 
+    # Implemented by children
+    def set_input_pulse(self, input_name, pulse):
+        return
+
+
 
 ## Flip-flop modules (prefix %)
 class Flipflop(MyModule):
@@ -31,8 +36,10 @@ class Flipflop(MyModule):
     def get_output(self):
         return self.state
     
-    def flipstate(self):
-        self.state = HIGH_PULSE - self.state
+    def set_input_pulse(self, input_name, pulse):
+        if pulse == LOW_PULSE:
+            # Flip the state
+            self.state = HIGH_PULSE - self.state
             
 
 
@@ -43,10 +50,9 @@ class Conjunc(MyModule):
         self.high_inputs = set()
         self.low_inputs = set()
         # Sends high by default
-        self.state = HIGH_PULSE
+        self.state = LOW_PULSE
 
     def set_input_pulse(self, input_name: str, pulse: int):
-        before_state = self.state
         if pulse == LOW_PULSE:
             self.low_inputs.add(input_name)
             self.high_inputs.discard(input_name)
@@ -54,9 +60,7 @@ class Conjunc(MyModule):
             self.high_inputs.add(input_name)
             self.low_inputs.discard(input_name)
             
-        after_state = self.get_output()
-        if after_state != before_state:
-            return after_state
+        return self.get_output()
         
 
     def get_output(self):
@@ -74,7 +78,6 @@ def read_file(fileaddr):
     with open(fileaddr, "r") as file:
         lines = file.readlines()
     return [line.replace("\n", "") for line in lines]
-
 
 def take_snapshot(module_dict):
     snapshot = {}
@@ -105,15 +108,25 @@ def part_one(fileaddr):
 
     num_pulses = [0,0]
 
-    button_clicks = 2
+    button_clicks = 1000
+
+    ## Initialise the inputs for the Conjunction modules
+    for name, module in module_dict.items():
+        for next_name in module.output_modules:
+            if next_name in module_dict.keys() and isinstance(module_dict[next_name], Conjunc):
+                module_dict[next_name].set_input_pulse(name, LOW_PULSE)
+
 
     iters = 0
     machine_snapshots = [take_snapshot(module_dict)]
 
     for i in range(0, button_clicks):
-        print("i:",i)
+        # print("i:",i)
         next_actions = ['broadcaster']
+
+        # Button sends a low pulse initially
         num_pulses[LOW_PULSE] += 1
+        # print(" >> button -low-> broadcaster")
 
         while len(next_actions) > 0:
             actions = next_actions
@@ -128,6 +141,9 @@ def part_one(fileaddr):
                 for next_mod_name in module.output_modules:
                     num_pulses[output_pulse] += 1
 
+                    pulse = ['low', 'high'][output_pulse]
+                    # print(f" >> {mod_name} -{pulse}-> {next_mod_name}")
+
                     if next_mod_name not in module_dict.keys():
                         continue
 
@@ -140,13 +156,9 @@ def part_one(fileaddr):
 
                     elif isinstance(next_mod, Flipflop):
                         if output_pulse == LOW_PULSE:
-                            next_mod.flipstate()
+                            next_mod.set_input_pulse(mod_name, output_pulse)
                             next_actions.append(next_mod_name)
-                    
-                    pulse = ['low', 'high'][output_pulse]
-                    print(f" >> {mod_name} -{pulse}-> {next_mod_name}")
-
-                                    
+                                                        
         # print(f"i:{i}, highs: {num_pulses[HIGH_PULSE]}, lows: {num_pulses[LOW_PULSE]}")
 
         # snapshot = take_snapshot(module_dict)
