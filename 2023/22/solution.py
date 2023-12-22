@@ -2,16 +2,24 @@ import sys, os
 import re
 
 
-def read_file(fileaddr):
-    lines = []
-    with open(fileaddr, "r") as file:
-        lines = file.readlines()
-    return [line.replace("\n", "") for line in lines]
-
 
 def coords_to_values(coords):
     splits = coords.split(",")
     return int(splits[0]), int(splits[1]), int(splits[2])
+
+
+def read_file(fileaddr):
+    lines = []
+    with open(fileaddr, "r") as file:
+        lines = file.readlines()
+
+    def line_to_brick(line):
+        coords = line.replace("\n", "").split("~")
+        # Get the points in x,y,z format
+        return coords_to_values(coords[0]), coords_to_values(coords[1])
+    
+    return [line_to_brick(line) for line in lines]
+
 
 
 def print_xz(grid, max_z=None):
@@ -23,9 +31,11 @@ def print_xz(grid, max_z=None):
         for x in range(len(grid)):
             curr = []
             for y in range(len(grid[0])):
-                if grid[x][y][z] == '.':
-                    continue
-                if len(curr) == 0 or grid[x][y][z] not in curr: 
+                if len(curr) == 0:
+                    curr.append(grid[x][y][z])
+                elif grid[x][y][z] != '.' and grid[x][y][z] not in curr: 
+                    if curr == ['.']:
+                        curr = []
                     curr.append(grid[x][y][z])
             row.append("/".join(curr).rjust(10))        
         print(",".join(row),":", z)
@@ -39,23 +49,71 @@ def print_yz(grid, max_z=None):
         for y in range(len(grid[0])):
             curr = []
             for x in range(len(grid)):
-                if grid[x][y][z] == '.':
-                    continue
-                if len(curr) == 0 or grid[x][y][z] not in curr: 
+                if len(curr) == 0:
+                    curr.append(grid[x][y][z])
+                elif grid[x][y][z] != '.' and grid[x][y][z] not in curr: 
+                    if curr == ['.']:
+                        curr = []
                     curr.append(grid[x][y][z])
             row.append("/".join(curr).rjust(10))
         print(",".join(row),":", z)
 
 
-## Solve Part One
-def part_one(fileaddr):
-    lines = read_file(fileaddr)
+def populate_grid_with_bricks(bricks, grid, gravity=False):
+    # For brick x, list all bricks which rely on x
+    bricks_above = []
+    # For brick x, list all bricks which x relies on 
+    bricks_below = []
 
-    grid = []
+    max_z = 0
+        
+    for i, brick in enumerate(bricks):
+        bricks_above.append(set())
+        bricks_below.append(set())
+
+        start = brick[0]
+        end = brick[1]
+
+        # Make the block fall, if this option was passed
+        is_falling = gravity
+
+        # Bottom of this block in the Z-axis
+        z_start = min(start[2], end[2])
+        # Height of this block in the Z-axis
+        z_height = max(start[2], end[2])+1 - z_start
+
+        while is_falling:
+            for x in range(start[0], end[0]+1):
+                for y in range(start[1], end[1]+1):
+                    cell_under = grid[x][y][z_start-1]
+
+                    if cell_under != '.':
+                        # print(f"Brick {i} is supported at z={z_start-1}")
+                        is_falling = False
+                        if cell_under != '-':
+                            bricks_above[int(cell_under)].add(i)
+                            bricks_below[i].add(int(cell_under))
+                        else:
+                            # Bricks resting on the ground
+                            bricks_below[i].add('-')
+
+
+            if is_falling:
+                # print(f"Falling z={z_start}")
+                z_start -= 1
+            else:
+                max_z = max(max_z, z_start + z_height)
+                # Write the brick to the grid
+                for x in range(start[0], end[0]+1):
+                    for y in range(start[1], end[1]+1):
+                        for z in range(z_height):
+                            grid[x][y][z_start+z] = str(i)
     
-    x_len = 10
-    y_len = 10
-    z_len = 330
+    return grid, bricks_above, bricks_below, max_z
+
+
+def gen_grid(x_len, y_len, z_len):
+    grid = []
 
     for x in range(x_len):
         ys = []
@@ -67,77 +125,19 @@ def part_one(fileaddr):
         for y in range(len(grid[0])):
             grid[x][y][0] = '-'
 
-    bricks = []
+    return grid
 
-    max_z = 0
 
-    # For brick x, list all bricks which rely on x for support
-    supporting = {}
-    # For brick x, list all bricks which x relies on 
-    supported_by = {}
-
-    # Track bricks resting on the base
-    supporting['-'] = []
-
-    for i,line in enumerate(lines):
-        coords = line.split("~")
-        # Get the points in x,y,z format
-        start = coords_to_values(coords[0])
-        end = coords_to_values(coords[1])
-
-        bricks.append((start,end))
-
-    # Sort by z-axis value of the lowest end of the brick
-    bricks.sort(key=lambda brick: min(brick[0][2], brick[1][2]))
-    # bricks = bricks[:6]
-
-    for i, brick in enumerate(bricks):
-        start,end = brick
-        # print(f"{i}: {brick}")
-        z_start = min(start[2], end[2])
-        z_len = end[2]+1-start[2]
-        supporting[str(i)] = []
-        supported_by[str(i)] = []
-
-        # Make the block fall
-        is_falling = True
-
-        while is_falling:
-            for x in range(start[0], end[0]+1):
-                for y in range(start[1], end[1]+1):
-                    cell_under = grid[x][y][z_start-1]
-                    if cell_under != '.':
-                        # print(f"Brick {i} is supported at z={z_start-1}")
-                        is_falling = False
-                        supporting[cell_under].append(str(i))
-                        supported_by[str(i)].append(cell_under)
-
-            if is_falling:
-                z_start -= 1
-            else:
-                print(f"Brick {i} fell {min(end[2]+1-start[2],z_start)} block/s")
-
-        for x in range(start[0], end[0]+1):
-            for y in range(start[1], end[1]+1):
-                for zi in range(z_len):
-                    grid[x][y][z_start+zi] = str(i)
-                max_z = max(max_z, z_start+z_len)
-
-    # print("\nX-Z View:")
-    # print_xz(grid, max_z)
-    # print("\nY-Z View:")
-    # print_yz(grid, max_z)
-
+def count_removable_bricks(bricks, bricks_above, bricks_below):
     num_removable = 0
-
-    # print(supporting)
 
     for i in range(0, len(bricks)):
         can_remove = True
 
-        for sup_brick in supporting[str(i)]:
-            # Check if at least one brick resting on B, is only resting on B
-            if len(supported_by[sup_brick]) == 1:
+        # For all bricks being supported by this brick
+        for sup_brick in bricks_above[i]:
+            # Check if at least one of them is only resting on this brick
+            if len(bricks_below[sup_brick]) == 1:
                 can_remove = False
                 break
  
@@ -148,9 +148,72 @@ def part_one(fileaddr):
     return num_removable
 
 
+
+## Solve Part One
+def part_one(fileaddr):
+    bricks = read_file(fileaddr)
+    # Sort by z-axis value of the lowest end of the brick
+    # This is so that we can add the bricks in vertical order and apply gravity in one pass
+    bricks.sort(key=lambda brick: min(brick[0][2], brick[1][2]))
+
+    # Parameters are the max values of the data
+    grid = gen_grid(x_len=10, y_len=10, z_len=330)
+
+    # Add the bricks to the grid, with gravity
+    grid, bricks_above, bricks_below, max_z = populate_grid_with_bricks(bricks, grid, gravity=True)
+
+    print_xz(grid, max_z)
+
+    return count_removable_bricks(bricks, bricks_above, bricks_below)
+
+
 ## Solve Part Two
 def part_two(fileaddr):
-    return
+
+    bricks = read_file(fileaddr)
+    # Sort by z-axis value of the lowest end of the brick
+    # This is so that we can add the bricks in vertical order and apply gravity in one pass
+    bricks.sort(key=lambda brick: min(brick[0][2], brick[1][2]))
+
+    # Parameters are the max values of the data
+    grid = gen_grid(x_len=10, y_len=10, z_len=330)
+
+    # Add the bricks to the grid, with gravity
+    grid, bricks_above, bricks_below, max_z = populate_grid_with_bricks(bricks, grid, gravity=True)
+
+    print("X-Z")
+    print_xz(grid, max_z)
+    print("Y-Z")
+    print_yz(grid, max_z)
+    
+    collapses_if_removed = [0 for i in range(len(bricks))]
+
+    # Brute-Force to find the number of collapses
+
+    for i in range(len(bricks)-1, -1, -1):
+        # print("Removing", str(i))
+        removed = [i]
+        bi = 0
+        while bi < len(removed):
+            curr = removed[bi]
+            for sup_brick in bricks_above[curr]:
+                if sup_brick in removed:
+                    continue
+
+                # Bricks still supporting sup_brick
+                standing = [b for b in bricks_below[sup_brick] if b not in removed]
+                # print(standing)
+
+                if len(standing) == 0:
+                    # print(f"Destroying brick {curr} causes brick {sup_brick} to collapse")
+                    removed.append(sup_brick)
+    
+            bi+=1
+
+        # Ignore the brick we removed to trigger the reaction
+        collapses_if_removed[i] = len(removed)-1
+
+    return sum(collapses_if_removed)
 
 
 
