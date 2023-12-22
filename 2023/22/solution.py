@@ -14,29 +14,37 @@ def coords_to_values(coords):
     return int(splits[0]), int(splits[1]), int(splits[2])
 
 
-def print_xz(grid):
+def print_xz(grid, max_z=None):
+    if max_z is None:
+        max_z = len(grid[0][0])-1
     # print("  x  ")
-    for z in range(len(grid[0][0])-1, -1, -1):
-        row = "  "
+    for z in range(max_z, -1, -1):
+        row = []
         for x in range(len(grid)):
-            curr = '.'
+            curr = []
             for y in range(len(grid[0])):
-                if grid[x][y][z] != '.':
-                    curr = grid[x][y][z]
-            row += curr
-        print(row)
+                if grid[x][y][z] == '.':
+                    continue
+                if len(curr) == 0 or grid[x][y][z] not in curr: 
+                    curr.append(grid[x][y][z])
+            row.append("/".join(curr).rjust(10))        
+        print(",".join(row),":", z)
 
-def print_yz(grid):
+def print_yz(grid, max_z=None):
     # print("  y  ")
-    for z in range(len(grid[0][0])-1, -1, -1):
-        row = "  "
+    if max_z is None:
+        max_z = len(grid[0][0])-1
+    for z in range(max_z, -1, -1):
+        row = []
         for y in range(len(grid[0])):
-            curr = '.'
+            curr = []
             for x in range(len(grid)):
-                if grid[x][y][z] != '.':
-                    curr = grid[x][y][z]
-            row += curr
-        print(row)
+                if grid[x][y][z] == '.':
+                    continue
+                if len(curr) == 0 or grid[x][y][z] not in curr: 
+                    curr.append(grid[x][y][z])
+            row.append("/".join(curr).rjust(10))
+        print(",".join(row),":", z)
 
 
 ## Solve Part One
@@ -47,7 +55,7 @@ def part_one(fileaddr):
     
     x_len = 10
     y_len = 10
-    z_len = 500
+    z_len = 330
 
     for x in range(x_len):
         ys = []
@@ -60,6 +68,8 @@ def part_one(fileaddr):
             grid[x][y][0] = '-'
 
     bricks = []
+
+    max_z = 0
 
     # For brick x, list all bricks which rely on x for support
     supporting = {}
@@ -77,11 +87,18 @@ def part_one(fileaddr):
 
         bricks.append((start,end))
 
-        supporting[i] = []
-        supported_by[i] = []
+    # Sort by z-axis value of the lowest end of the brick
+    bricks.sort(key=lambda brick: min(brick[0][2], brick[1][2]))
+    # bricks = bricks[:6]
 
+    for i, brick in enumerate(bricks):
+        start,end = brick
+        # print(f"{i}: {brick}")
         z_start = min(start[2], end[2])
         z_len = end[2]+1-start[2]
+        supporting[str(i)] = []
+        supported_by[str(i)] = []
+
         # Make the block fall
         is_falling = True
 
@@ -90,41 +107,42 @@ def part_one(fileaddr):
                 for y in range(start[1], end[1]+1):
                     cell_under = grid[x][y][z_start-1]
                     if cell_under != '.':
-                        print(f"Found brick at {z_start-1}")
+                        # print(f"Brick {i} is supported at z={z_start-1}")
                         is_falling = False
-                        supporting[cell_under].append(i)
-                        supported_by[i].append(cell_under)
+                        supporting[cell_under].append(str(i))
+                        supported_by[str(i)].append(cell_under)
 
             if is_falling:
                 z_start -= 1
-                print(f"Brick {i} fell 1 block")
+            else:
+                print(f"Brick {i} fell {min(end[2]+1-start[2],z_start)} block/s")
 
         for x in range(start[0], end[0]+1):
             for y in range(start[1], end[1]+1):
                 for zi in range(z_len):
                     grid[x][y][z_start+zi] = str(i)
+                max_z = max(max_z, z_start+z_len)
 
     # print("\nX-Z View:")
-    # print_xz(grid)
+    # print_xz(grid, max_z)
     # print("\nY-Z View:")
-    # print_yz(grid)
+    # print_yz(grid, max_z)
 
     num_removable = 0
 
     # print(supporting)
 
     for i in range(0, len(bricks)):
-        B = bricks[i]
         can_remove = True
 
-        for sup_brick in supporting[i]:
+        for sup_brick in supporting[str(i)]:
             # Check if at least one brick resting on B, is only resting on B
             if len(supported_by[sup_brick]) == 1:
                 can_remove = False
                 break
  
         if can_remove:
-            print("Can remove brick", i)
+            # print("Can remove brick", i)
             num_removable += 1
 
     return num_removable
