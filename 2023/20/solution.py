@@ -1,5 +1,6 @@
 import sys, os
 import re
+from math import lcm
 
 HIGH_PULSE = 1
 LOW_PULSE = 0
@@ -12,17 +13,35 @@ class MyModule:
         if match:
             self.name = match.group(1)
             self.output_modules = match.group(2).split(", ")
-        self.state = LOW_PULSE
+        self.input_names = []
+        self.output_high = False
+        self.high_pulse_times = []
+        self.high_pulse_snapshots = []
+
+    def has_outputted_high(self, times):
+        return len(self.high_pulse_times) >= times
 
     def get_output(self):
-        return self.state
+        if self.output_high:
+            return HIGH_PULSE
+        return LOW_PULSE
 
     def __repr__(self):
         return f"Module {self.name} outputs: {self.output_modules}"
 
-    # Implemented by children
-    def set_input_pulse(self, input_name, pulse):
-        return
+    def receive_pulse(self):
+        pass
+
+
+class Broadcaster(MyModule):
+    def __init__(self, line):
+        super().__init__(line)
+    
+    def receive_pulse(self, input_high):
+        self.output_high = input_high
+
+    def __repr__(self):
+        return f"[{self.name} -> {self.output_modules}]"
 
 
 
@@ -31,47 +50,148 @@ class Flipflop(MyModule):
     def __init__(self, line):
         super().__init__(line)
         # Initially off
-        self.state = LOW_PULSE
-
-    def get_output(self):
-        return self.state
+        self.output_high = False
     
-    def set_input_pulse(self, input_name, pulse):
-        if pulse == LOW_PULSE:
-            # Flip the state
-            self.state = HIGH_PULSE - self.state
+    def receive_pulse(self, input_high, input_name=None, button_click_i=None):
+        # On any LOW pulse, flip the state
+        if not input_high:
+            self.output_high = not self.output_high
             
+    def __repr__(self):
+        return f"[%{self.name} -> {self.output_modules}]"
 
 
 ## Conjunction modules (prefix &)
 class Conjunc(MyModule):
     def __init__(self, line):
         super().__init__(line)
-        self.high_inputs = set()
-        self.low_inputs = set()
-        # Sends high by default
-        self.state = LOW_PULSE
+        self.inputs = {}
+        # Sends low by default
+        self.output_high = False
 
-    def set_input_pulse(self, input_name: str, pulse: int):
-        if pulse == LOW_PULSE:
-            self.low_inputs.add(input_name)
-            self.high_inputs.discard(input_name)
-        else:
-            self.high_inputs.add(input_name)
-            self.low_inputs.discard(input_name)
-            
-        return self.get_output()
+    def add_initial_input(self, input_name):
+        self.inputs[input_name] = False
+
+    def receive_pulse(self, input_high: bool, input_name: str, button_click_i=None):
+        self.inputs[input_name] = input_high
+        all_inputs_high = all(self.inputs.values())
+        # Send LOW if all inputs are HIGH; or send HIGH otherwise
+        self.output_high = not all_inputs_high
+
+        if self.output_high and len(self.high_pulse_times) < 5:
+            self.high_pulse_times.append(button_click_i)
+            self.high_pulse_snapshots.append(self.inputs.copy())
+
+        return self.output_high
+    
+    def __repr__(self):
+        return f"[&{self.name} -> {self.output_modules}]"
+
+
+
+class Controller:
+    def __init__(self, modules):
+        self.num_pulses = { LOW_PULSE: 0, HIGH_PULSE: 0 }
+        self.modules = modules
+
+        self.modules['button'] = MyModule("button -> broadcaster")
+
+        ## Initialise the inputs for the Conjunction modules
+        for name, module in self.modules.items():
+            for next_name in module.output_modules:
+                # All conjunction modules should have their inputs initialised as LOW
+                if next_name in self.modules.keys() and isinstance(self.modules[next_name], Conjunc):
+                    self.modules[next_name].add_initial_input(input_name=name)
+
+
+    def find_module(self, mod_name):
+        if mod_name in self.modules.keys():
+            return self.modules[mod_name]
+        return None
+    
+    def find_inputs_to(self, mod_name):
+        inputs = []
+        for name, module in self.modules.items():
+            if mod_name in module.output_modules:
+                inputs.append(module)
+        return inputs
+
+    def simulate_button_clicks(self, num_clicks):
+        for i in range(0, num_clicks):
+            self.push_button(i)
+
+
+    def push_button(self, click_num):
+        next_actions = ['button']
+        actions = []
+
+        while len(next_actions) > 0:
+            actions = next_actions
+            next_actions = []
+
+            for mod_name in actions:
+                module = self.modules[mod_name]
+                output_pulse = module.get_output()
+                output_high = module.output_high
+
+                for next_mod_name in module.output_modules:
+                    self.num_pulses[output_pulse] += 1
+
+                    # pulse = ['low', 'high'][output_pulse]
+                    # print(f" >> {mod_name} -{pulse}-> {next_mod_name}")
+
+                    next_mod = self.find_module(next_mod_name)
+                    
+                    if next_mod is None:
+                        continue
+
+                    if isinstance(next_mod, Conjunc):
+                        next_mod.receive_pulse(output_high, mod_name, click_num)
+                        next_actions.append(next_mod_name)
+
+                    elif isinstance(next_mod, Flipflop):
+                        if output_pulse == LOW_PULSE:
+                            next_mod.receive_pulse(output_high, mod_name, click_num)
+                            next_actions.append(next_mod_name)
+
+                    else:
+                        next_actions.append(next_mod_name)
+
+
+    def steps_till_modules_high(self, target_modules):
+        i = 0
+        # Run until we've seen *each* of the given modules output a high pulse twice
+        while not all([tm.has_outputted_high(2) for tm in target_modules]):
+            self.push_button(i)
+            i += 1
+
+        high_pulses_at = [tm.high_pulse_times for tm in target_modules]
+        # high_pulses_ss = [tm.high_pulse_snapshots for tm in target_modules]
+
+        cycle_lens = [hp[1] - hp[0] for hp in high_pulses_at]
+        print(high_pulses_at)
+
+        def calc_diffs(list):
+            diffs = []
+            for i in range(1, len(list)):
+                diffs.append(list[i]- list[i-1])
+            return diffs 
+
+        diffs = [calc_diffs(l) for l in high_pulses_at]
+        print(diffs)
+
+        # print(high_pulses_ss)
+        print(cycle_lens)
+        lcm_len = lcm(*cycle_lens)
+        # print("Lcm:",lcm_len)
+        # max_start = max([hp[0] for hp in high_pulses_at])
         
+        # return max_start + lcm_len
+        return lcm_len
 
-    def get_output(self):
-        if len(self.low_inputs) == 0:
-            # All inputs are high, so the module is low
-            self.state = LOW_PULSE
-        else:
-            # At least one input is low, so the module is high
-            self.state = HIGH_PULSE
+            
 
-        return self.state
+
 
 def read_file(fileaddr):
     lines = []
@@ -79,23 +199,16 @@ def read_file(fileaddr):
         lines = file.readlines()
     return [line.replace("\n", "") for line in lines]
 
-def take_snapshot(module_dict):
-    snapshot = {}
-    for name, module in module_dict.items():
-        snapshot[name] = module.state
-    return snapshot
 
 
 
-## Solve Part One
-def part_one(fileaddr):
+def make_module_controller(fileaddr):
     lines = read_file(fileaddr)
-
     module_dict = {}
 
     for line in lines:
         if line.startswith('broadcaster'):
-            broadcaster = MyModule(line)
+            broadcaster = Broadcaster(line)
             module_dict['broadcaster'] = broadcaster
         elif line.startswith('%'):
             flipflop = Flipflop(line[1:])
@@ -104,88 +217,35 @@ def part_one(fileaddr):
             conjunc = Conjunc(line[1:])
             module_dict[conjunc.name] = conjunc
 
-    # print(module_dict)
+    return Controller(module_dict)
 
-    num_pulses = [0,0]
 
+
+def part_one(fileaddr):
+    controller = make_module_controller(fileaddr)
     button_clicks = 1000
-
-    ## Initialise the inputs for the Conjunction modules
-    for name, module in module_dict.items():
-        for next_name in module.output_modules:
-            if next_name in module_dict.keys() and isinstance(module_dict[next_name], Conjunc):
-                module_dict[next_name].set_input_pulse(name, LOW_PULSE)
-
-
-    iters = 0
-    machine_snapshots = [take_snapshot(module_dict)]
-
-    for i in range(0, button_clicks):
-        # print("i:",i)
-        next_actions = ['broadcaster']
-
-        # Button sends a low pulse initially
-        num_pulses[LOW_PULSE] += 1
-        # print(" >> button -low-> broadcaster")
-
-        while len(next_actions) > 0:
-            actions = next_actions
-            next_actions = []
-
-            for mod_name in actions:
-                module = module_dict[mod_name]
-                output_pulse = module.get_output()
-
-                ## TO FIX - Doesn't give correct num of High pulses for Test 2
-
-                for next_mod_name in module.output_modules:
-                    num_pulses[output_pulse] += 1
-
-                    pulse = ['low', 'high'][output_pulse]
-                    # print(f" >> {mod_name} -{pulse}-> {next_mod_name}")
-
-                    if next_mod_name not in module_dict.keys():
-                        continue
-
-                    next_mod = module_dict[next_mod_name]
-
-                    if isinstance(next_mod, Conjunc):
-                        new_mod_state = next_mod.set_input_pulse(mod_name, output_pulse)
-                        if new_mod_state is not None:
-                            next_actions.append(next_mod_name)
-
-                    elif isinstance(next_mod, Flipflop):
-                        if output_pulse == LOW_PULSE:
-                            next_mod.set_input_pulse(mod_name, output_pulse)
-                            next_actions.append(next_mod_name)
-                                                        
-        # print(f"i:{i}, highs: {num_pulses[HIGH_PULSE]}, lows: {num_pulses[LOW_PULSE]}")
-
-        # snapshot = take_snapshot(module_dict)
-        # for si, old_snapshot in enumerate(machine_snapshots):
-        #     if old_snapshot == snapshot:
-        #         # Loop found
-        #         loop_len = i+1 - si
-        #         print(f"!! loop after {si} clicks")
-        #         num_loops = button_clicks / loop_len
-        #         num_pulses[HIGH_PULSE] *= num_loops
-        #         num_pulses[LOW_PULSE] *= num_loops
-        #         return num_pulses[HIGH_PULSE] * num_pulses[LOW_PULSE]
-            
-        # machine_snapshots.append(snapshot)
-
-    print(num_pulses)
+    controller.simulate_button_clicks(button_clicks)
+    num_pulses = controller.num_pulses        
+    print(f"Low: {num_pulses[LOW_PULSE]}, High: {num_pulses[HIGH_PULSE]}")
     return num_pulses[LOW_PULSE] * num_pulses[HIGH_PULSE]
 
 
-## Solve Part Two
+
+
 def part_two(fileaddr):
-    return
+    controller = make_module_controller(fileaddr)
+    target = "rx"
+    inputs_to_target = controller.find_inputs_to(target)
 
+    if len(inputs_to_target) != 1:
+        print(f"Unexpected number of inputs to module {target}")
+        return None
+    
+    predecessor_of_target = inputs_to_target[0]
+    conjunc_inputs = controller.find_inputs_to(predecessor_of_target.name)
 
-
-
-
+    print(conjunc_inputs)
+    return controller.steps_till_modules_high(conjunc_inputs)
 
 
 
@@ -198,7 +258,7 @@ if __name__ == '__main__':
     fileaddr = os.path.dirname(os.path.realpath(sys.argv[0])) + "\\" + args[0]
 
     if os.path.exists(fileaddr):
-        if (part == '1'):
+        if part == '1':
             result = part_one(fileaddr)
         else:
             result = part_two(fileaddr)
