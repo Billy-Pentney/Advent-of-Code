@@ -37,18 +37,15 @@ class Line:
         self.end = [self.start[0]+self.length_vect[0], self.start[1]+self.length_vect[1]]
 
     def __repr__(self):
-        return f"({self.start}: {self.end}, by {self.dir}, length: {self.length})"
+        return f"\n({self.start}:{self.end} by {self.dir}, len={self.length})"
     
-    def extend(self, vector):
-        self.length_vect[0] += vector[0]
-        self.length_vect[1] += vector[1]
-        self.end[0] += vector[0]
-        self.end[1] += vector[1]
+    def extend(self, num):
+        dv = dir_vector(self.dir)
+        self.length_vect[0] += num*dv[0]
+        self.length_vect[1] += num*dv[1]
+        self.end[0] += num*dv[0]
+        self.end[1] += num*dv[1]
         self.length = abs(self.length_vect[0]) + abs(self.length_vect[1])
-
-    def reduce(self, vector):
-        opp_vector = [-1*vector[0], -1*vector[1]]
-        self.extend(opp_vector)
 
 
 
@@ -63,7 +60,6 @@ def read_file(fileaddr):
 def trace_path(moves):
     cell = [0,0]
     pivots = []
-    history = [cell]
     lines = []
 
     min_x, max_x = 0,0
@@ -88,29 +84,41 @@ def trace_path(moves):
         pivots.append((cell, curr_dir, dir))
         curr_dir = dir
 
-        for i in range(1,count+1):
-            new_cell = [cell[0]+i*vect[0], cell[1]+i*vect[1]]
-            history.append(new_cell)
-        
         lines.append(Line(cell, dir, count))
-        cell = new_cell
+        cell = lines[-1].end
         
         min_x = min(cell[0], min_x)
         max_x = max(cell[0], max_x)
         min_y = min(cell[1], min_y)
         max_y = max(cell[1], max_y)
 
-    print("X:",min_x, max_x)
-    print("Y:",min_y, max_y)
+    # print("X:",min_x, max_x)
+    # print("Y:",min_y, max_y)
 
     width = max_x+1 - min_x
     height = max_y+1 - min_y
     
-    return width, height, history, lines
+    return width, height, lines
+
+
+
+
+def mark_on_grid(grid, line, highlight=False):
+    start = line.start
+    end = line.end
+    for x in range(min(start[0], end[0]), max(start[0], end[0])+1):
+        for y in range(min(start[1], end[1]), max(start[1], end[1])+1):
+            if highlight:
+                grid[y][x] = 'X'
+            else:
+                grid[y][x] = '#'
+    return grid
+
 
 def print_grid(grid):
-    for row in grid:
-        print("".join(row))
+    print("\n   " + " ".join([str(i) for i in range(0,len(grid[0]))]))
+    for i,row in enumerate(grid):
+        print(f" {i} " + " ".join(row))
 
 
 def opposite_dir(dir):
@@ -124,126 +132,192 @@ def opposite_dir(dir):
         return RIGHT
     return None
 
+def sign(x):
+    if x > 0:
+        return 1
+    elif x < 0:
+        return -1
+    return 0
+
+
+def plot_on_grid(lines, shape):
+    width,height = shape
+    grid = [['.' for col in range(width)] for row in range(height)]
+    for i,line in enumerate(lines):
+        mark_on_grid(grid, line, highlight=(i==0))
+    print_grid(grid)
+
+
+def contract(i, stack):
+    line = stack[i]
+    stack.remove(line)
+
+    prev = stack[i-1]
+    prevprev = stack[i-2]
+
+    length_vect = [line.length_vect[0], line.length_vect[1]]
+    length = line.length
+
+    # Find the new end position of the penultimate stack entry
+    prevprev.length_vect[0] += length_vect[0]
+    prevprev.length_vect[1] += length_vect[1]
+
+    length_after_contraction = prevprev.length - length
+
+    # The original line is not completely collapsed
+    if length_after_contraction > 0:    
+        prevprev.length = length_after_contraction
+    
+        prevprev.end[0] += length_vect[0]
+        prevprev.end[1] += length_vect[1]
+
+        # Replace the previous stack entry with a line to the current position
+        prev = Line(prevprev.end, prev.dir, prev.length)
+        stack[i-1] = prev
+        print(f"Amended {prevprev} and {prev}")
+    else:
+        print(f"Discarding box from {prevprev.start} to {line.end}")
+        # The original line is empty, so we discard this box 
+        stack.remove(prevprev)
+        stack.remove(prev)
+
+        if i >= 2:
+            i -= 2
+        elif i == 1:
+            i -= 1
+
+        # Move the last line to finish at the start of the current line
+        if len(stack) > 0:
+            # print(f"Extending {stack[i-1]}")
+            if stack[i-1].dir == prev.dir:
+                stack[i-1].extend(prev.length)
+            else:
+                stack[i-1].extend(-1*prev.length)
+
+        if length_after_contraction != 0:
+            if len(stack) < 2 or stack[i-1].dir != opposite_dir(line.dir):
+                print("Inserting")
+                stack.insert(i, Line(stack[i-1].end, line.dir, -length_after_contraction))
+            else:
+                stack[i-1].extend(-1*line.length)
+
+
+
 ## Solve Part One
 def part_one(fileaddr):
     line_splits = read_file(fileaddr)
-    width, height, history, lines = trace_path(line_splits)
+    width, height, lines = trace_path(line_splits)
  
     area = 0
     stack = []
 
     grid = [['.' for col in range(width)] for row in range(height)]
 
-    for cell in history:
-        grid[cell[1]][cell[0]] = '#'
+
+    for line in lines:
+        stack.append(line)
 
     # Strategy: evaluate the area by "cordoning" off rectangles and removing them from the grid
-    for line in lines:
-        print("\nStack before:",stack)
-        print("LINE:",line)
+    while len(stack) > 4:
+        i = 0
 
-        if len(stack) > 1 and stack[-2].dir == opposite_dir(line.dir):
-            prev: Line = stack[-1]
-            prevprev: Line = stack[-2]
+        while i < len(stack) and len(stack) >= 4:
+            line = stack[i]
 
-            # The number of cells dug between this line and prevprev
-            # i.e. the "height" of the box being drawn
-            box_span = prev.length - 1
-            # The breadth of the box
-            box_width = 0
+            plot_on_grid(stack, (width,height))
 
-            print("Box found!")
+            if len(stack) > 1 and stack[i-2].dir == opposite_dir(line.dir):
+                prev: Line = stack[i-1]
+                prevprev: Line = stack[i-2]
 
-            if line.dir == LEFT:
-                box_width = line.start[0] - max(prevprev.start[0], line.end[0])
-                """
-                        ->                           ->
-                      #######         or             ### |
-                            # |                        # v
-                         #### v                   ######
-                          <-                         <-
-                """  
+                # The number of cells dug between this line and prevprev
+                # i.e. the "height" of the box being drawn
+                box_span = prev.length+1
+                # The breadth of the box
+                box_width = 0
 
-            elif line.dir == RIGHT:
-                box_width = min(prevprev.start[0], line.end[0]) - line.start[0]
-                """
-                          ->
-                      #######         or          ###
-                    ^ #                           #
-                    | ####                        ######
-                        <-
-                """    
+                # print("Box found!")
 
-            if line.dir == DOWN:
-                box_width = min(line.end[1], prevprev.start[1]) - line.end[1]
-                """
-                         -->
-                        #### |        or      ####
-                      ^ #  # v                #  #
-                      | #                     #
-                """
-            if line.dir == UP:
-                box_width = line.start[1] - max(line.end[1], prevprev.start[1])
-                """  
-                      | #    ^        or         #
-                      v #  # |                #  #
-                        ####                  ####
-                         ->
-                """
+                if line.dir == LEFT:
+                    box_width = line.start[0] - max(prevprev.start[0], line.end[0])
+                    """
+                            ->                           ->
+                          #######         or             ### |
+                                # |                        # v
+                            #### v                   ######
+                            <-                         <-
+                    """  
 
-            print(f"Found a box of size {box_span} * {box_width}")
+                if line.dir == RIGHT:
+                    box_width = min(prevprev.start[0], line.end[0]) - line.start[0]
+                    """
+                            ->
+                          #######         or          ###
+                        ^ #                           #
+                        | ####                        ######
+                            <-
+                    """    
 
-            box_area = box_span * box_width
-            if box_area > 0:
-                area += box_area
-                print(f"Added {box_area} area to make total {area}")
+                if line.dir == DOWN:
+                    box_width = min(line.end[1], prevprev.start[1]) - line.start[1]
+                    """
+                            -->
+                          #### |        or      ####
+                        ^ #  # v                #  #
+                        | #                     #
+                    """
+                if line.dir == UP:
+                    box_width = line.start[1] - max(line.end[1], prevprev.start[1])
+                    """  
+                        | #    ^        or         #
+                        v #  # |                #  #
+                          ####                  ####
+                           ->
+                    """
 
-                # Find the new end position of the penultimate stack entry
-                prevprev.length_vect[0] += line.length_vect[0]
-                prevprev.length_vect[1] += line.length_vect[1]
+                box_area = box_span * box_width
 
-                length_after_contraction = prevprev.length - line.length
+                if box_area > 0:
+                    print(f"\nBox found at line {i}: {stack[i]}")
+                    print("Stack before contraction:",stack)
 
-                # The original line remains
-                if length_after_contraction > 0:    
-                    prevprev.length -= line.length
-                
-                    prevprev.end[0] += line.length_vect[0]
-                    prevprev.end[1] += line.length_vect[1]
+                    if len(stack) == 4:
+                        # Add the last box
+                        if stack[0].dir == RIGHT or stack[0].dir == LEFT:
+                            width = abs(stack[0].end[0] - stack[0].start[0])+1
+                            height = abs(stack[1].end[1] - stack[1].start[1])+1
+                        else:
+                            height = abs(stack[0].end[1] - stack[0].start[1])+1
+                            width = abs(stack[1].end[0] - stack[1].start[0])+1
+                        print(f"Adding final box of size {height} * {width}")
+                        box_area = height * width
 
-                    # Replace the previous stack entry with a line to the current position
-                    prev = Line(prevprev.end, prev.dir, prev.length)
-                    stack[-1] = prev
-                    print(f"Amended {prevprev} and {prev}")
+                    # Do the contraction
+                    area += box_area
+                    print(f"Adding {box_area} area to make total {area}")
+                    contract(i, stack)
+                    i = 0
                 else:
-                    print("Discarding box")
-                    # The original line is empty, so we discard this box 
-                    stack.remove(prevprev)
-                    stack.remove(prev)
+                    i += 1
 
-                    # Move the last line to finish at the start of the current line
-                    if len(stack) > 0:
-                        stack[-1].extend(prev.length_vect)
+            elif len(stack) > 0 and stack[i-1].dir == line.dir:
+                # Merge with the previous line in the same direction
+                print(f"Extending by {line.dir} * {line.length}")
+                stack[i-1].extend(line.length)
+                stack.remove(stack[i])
 
-                    stack.append(Line(stack[-1].end, line.dir, line.length - prevprev.length))
-
+            elif len(stack) > 0 and stack[i-1].dir == opposite_dir(line.dir):
+                # Reduce from the previous line in the opposite direction
+                print(f"Reducing by {line.dir} * {line.length} (adding area)")
+                area += line.length
+                stack[i-1].extend(-1*line.length)
+                stack.remove(stack[i])
+            
             else:
-                stack.append(line)
+                i+=1
 
-        elif len(stack) > 0 and stack[-1].dir == line.dir:
-            # Merge with the previous line in the same direction
-            stack[-1].extend(line.length_vect)
+    
 
-        elif len(stack) > 0 and stack[-1].dir == opposite_dir(line.dir):
-            # Reduce from the previous line in the opposite direction
-            stack[-1].reduce(line.length_vect)
-        
-        else:
-            stack.append(line)
-
-        print("Stack After:", stack)
-
-    print_grid(grid)
     return area
 
 
