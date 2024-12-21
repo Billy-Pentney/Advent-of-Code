@@ -47,6 +47,30 @@ numeric_moves = { key: {} for key in numeric_keys}
 directional_moves = { key: {} for key in directional_keys }
 
 
+step_precedence = {
+    UP: 0,
+    LEFT: 1,
+    RIGHT: 2,
+    DOWN: 3
+}
+
+
+def sort(steps):
+    return sorted(steps, key=lambda it: step_precedence[it])
+
+def reorder(steps):
+    joined = "".join(steps)
+    splits = joined.split("A")
+    concat = []
+    for i, split in enumerate(splits):
+        if i > 0:
+            concat.append("A")
+        concat.extend(sort(split))
+
+    print(concat)
+    return concat
+
+
 
 def compute_min_steps():
     n_numeric_keys = len(numeric_keys)
@@ -69,21 +93,21 @@ def compute_min_steps():
 
             sequence = []
             while p != t:
+                while p[1] > t[1] and p != [0,1]:           ## Cannot move down from 1 cell
+                    sequence.append(DOWN)
+                    p[1] -= 1
+                while p[1] < t[1]:
+                    sequence.append(UP)
+                    p[1] += 1
                 # print(p,t)
-                if p[0] > t[0] and p != [1,0]:           ## Cannot move left from 0 cell
+                while p[0] > t[0] and p != [1,0]:           ## Cannot move left from 0 cell
                     ## Move left
                     sequence.append(LEFT)
                     p[0] -= 1
-                elif p[0] < t[0]:
+                while p[0] < t[0]:
                     sequence.append(RIGHT)
                     p[0] += 1
                 
-                if p[1] > t[1] and p != [0,1]:           ## Cannot move down from 1 cell
-                    sequence.append(DOWN)
-                    p[1] -= 1
-                elif p[1] < t[1]:
-                    sequence.append(UP)
-                    p[1] += 1
 
             # print(f"{d1} -> {d2}: {sequence}")
             numeric_moves[d1][d2] = sequence
@@ -108,27 +132,25 @@ def compute_min_steps():
 
             sequence = []
             while p != t:
-                if p[1] > t[1]:           
+                while p[1] > t[1]:           
                     sequence.append(DOWN)
                     p[1] -= 1
-                elif p[1] < t[1] and p != [0,0]:        ## Cannot move up from LEFT cell
+                while p[1] < t[1] and p != [0,0]:        ## Cannot move up from LEFT cell
                     sequence.append(UP)
                     p[1] += 1
 
                 # print(p,t)
-                if p[0] > t[0] and p != [1,1]:           ## Cannot move left from UP cell
+                while p[0] > t[0] and p != [1,1]:           ## Cannot move left from UP cell
                     ## Move left
                     sequence.append(LEFT)
                     p[0] -= 1
-                elif p[0] < t[0]:
+                while p[0] < t[0]:
                     sequence.append(RIGHT)
                     p[0] += 1
                 
-                
 
             # print(f"{d1} -> {d2}: {sequence}")
-            directional_moves[d1][d2] = sorted(sequence)
-
+            directional_moves[d1][d2] = sequence
 
 
 
@@ -144,6 +166,8 @@ def find_numerical_instructions(code, start='A'):
         curr = dig
 
     return steps
+
+
 
 def find_directional_instructions(code, start='A', verbose=True):
     curr = start
@@ -166,15 +190,25 @@ def find_directional_instructions(code, start='A', verbose=True):
 
 
 def part_one(codes):
+    total_complexity = 0
     for code in codes:
         r1_steps = find_numerical_instructions(code)
+        r1_steps = reorder(r1_steps)
         r2_steps = find_directional_instructions(r1_steps, verbose=False)
-        r3_steps = find_directional_instructions(r2_steps, verbose=True)
+        r2_steps = reorder(r2_steps)
+        r3_steps = find_directional_instructions(r2_steps, verbose=False)
         print(code)
         print(f' 1: {"".join(r1_steps)}')
         print(f' 2: {"".join(r2_steps)}')
         print(f' 3: {"".join(r3_steps)}')
-        print()
+
+        num = int(code.replace("A",""))
+        length = len(r3_steps)
+        complexity = num * length
+        print(f"Complexity (l={length}, n={num}) = {complexity}\n")
+
+        total_complexity += complexity
+    return total_complexity
 
 
 
@@ -187,4 +221,5 @@ if __name__ == '__main__':
 
     print(directional_moves.items())
 
-    part_one(codes)
+    total_complexity = part_one(codes)
+    print(f"(Part 1) Total Complexity: {total_complexity}")
