@@ -26,7 +26,18 @@ def part_one(fileaddr):
 
 ## Solve Part Two
 def part_two(fileaddr):
-    return
+    line = read_file(fileaddr)
+
+    floor = 0
+    for i,char in enumerate(line):
+        if char == '(':
+            floor += 1
+        elif char == ')':
+            floor -= 1
+        if floor < 0:
+            return i+1
+    
+    return len(line)
 
 
 
@@ -47,6 +58,9 @@ if __name__ == '__main__':
         print(f"Could not find file at location {fileaddr}")
         exit(1)
     
-    result = part_one(fileaddr)
-    print(f"(Part 1) Result: {result}")
+    final_floor = part_one(fileaddr)
+    print(f"(Part 1) Final Floor: {final_floor}")
+
+    first_enter_basement = part_two(fileaddr)
+    print(f"(Part 2) First Enter Basement at: {first_enter_basement}")
     
