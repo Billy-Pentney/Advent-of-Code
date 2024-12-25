@@ -33,15 +33,15 @@ def part_two(fileaddr):
 if __name__ == '__main__':
     args = sys.argv[1:]
     filename = args[0]
-    part = args[1]
+    # part = args[1]
     fileaddr = os.path.dirname(os.path.realpath(sys.argv[0])) + "\\" + args[0]
 
-    if os.path.exists(fileaddr):
-        if (part == '1'):
-            result = part_one(fileaddr)
-        else:
-            result = part_two(fileaddr)
-        print("Result:",result)
-    else:
+    if not os.path.exists(fileaddr):
         print(f"Could not find file at location {fileaddr}")
+        exit(1)
+
+    part_one_ans = part_one(fileaddr)
+    print(f"(Part 1) Solution: {part_one_ans}")
     
+    # part_two_ans = part_two(fileaddr)
+    # print(f"(Part 2) Solution: {part_two_ans}")
