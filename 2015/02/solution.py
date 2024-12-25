@@ -32,10 +32,20 @@ def part_one(fileaddr):
     total_paper = sum([calculate_paper(box) for box in boxes])
     return total_paper
 
+import numpy as np
+
+def calculate_ribbon(box):
+    volume = np.product(box)
+    l,w,h = box[:3]
+    min_perimeter = min(2*l+2*h, 2*l+2*w, 2*w+2*h)
+
+    return min_perimeter + volume
+
 
 ## Solve Part Two
 def part_two(fileaddr):
-    return
+    boxes = read_file(fileaddr)
+    return sum([calculate_ribbon(box) for box in boxes])
 
 
 
@@ -59,3 +69,5 @@ if __name__ == '__main__':
     total_paper = part_one(fileaddr)
     print(f"(Part 1) Paper required: {total_paper}")
     
+    total_ribbon = part_two(fileaddr)
+    print(f"(Part 2) Ribbon required: {total_ribbon}")
