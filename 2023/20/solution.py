@@ -61,6 +61,8 @@ class Flipflop(MyModule):
         return f"[%{self.name} -> {self.output_modules}]"
 
 
+EARLY_BREAK = False
+
 ## Conjunction modules (prefix &)
 class Conjunc(MyModule):
     def __init__(self, line):
@@ -77,6 +79,10 @@ class Conjunc(MyModule):
         all_inputs_high = all(self.inputs.values())
         # Send LOW if all inputs are HIGH; or send HIGH otherwise
         self.output_high = not all_inputs_high
+
+        if self.name == 'lx' and self.output_high == False:
+            print("Module 'lx' output low!")
+            EARLY_BREAK = True
 
         if self.output_high and len(self.high_pulse_times) < 5:
             self.high_pulse_times.append(button_click_i)
@@ -134,6 +140,7 @@ class Controller:
                 output_pulse = module.get_output()
                 output_high = module.output_high
 
+                ## Propagate the pulse to the next modules
                 for next_mod_name in module.output_modules:
                     self.num_pulses[output_pulse] += 1
 
@@ -158,6 +165,8 @@ class Controller:
                         next_actions.append(next_mod_name)
 
 
+
+
     def steps_till_modules_high(self, target_modules):
         i = 0
         # Run until we've seen *each* of the given modules output a high pulse twice
@@ -166,7 +175,6 @@ class Controller:
             i += 1
 
         high_pulses_at = [tm.high_pulse_times for tm in target_modules]
-        # high_pulses_ss = [tm.high_pulse_snapshots for tm in target_modules]
 
         cycle_lens = [hp[1] - hp[0] for hp in high_pulses_at]
         print(high_pulses_at)
@@ -178,7 +186,7 @@ class Controller:
             return diffs 
 
         diffs = [calc_diffs(l) for l in high_pulses_at]
-        print(diffs)
+        # print(diffs)
 
         # print(high_pulses_ss)
         print(cycle_lens)
@@ -232,21 +240,39 @@ def part_one(fileaddr):
 
 
 
+# def part_two(fileaddr):
+#     controller = make_module_controller(fileaddr)
+#     target = "rx"
+#     inputs_to_target = controller.find_inputs_to(target)
+#     print(f"Required for rx are: {inputs_to_target}")
+
+#     if len(inputs_to_target) != 1:
+#         print(f"Unexpected number of inputs to module {target}")
+#         return None
+    
+#     ## We have a conjunction module which triggers 'rx'
+#     ## So, we need its predecessors to ALL be high, in order for the low pulse to rx.
+#     predecessor_of_target = inputs_to_target[0]
+#     conjunc_inputs = controller.find_inputs_to(predecessor_of_target.name)
+
+#     print(conjunc_inputs)
+#     return controller.steps_till_modules_high(conjunc_inputs)
+
+
+
 def part_two(fileaddr):
     controller = make_module_controller(fileaddr)
     target = "rx"
-    inputs_to_target = controller.find_inputs_to(target)
+    controller.find_module(target)
 
-    if len(inputs_to_target) != 1:
-        print(f"Unexpected number of inputs to module {target}")
-        return None
-    
-    predecessor_of_target = inputs_to_target[0]
-    conjunc_inputs = controller.find_inputs_to(predecessor_of_target.name)
+    button_press = 0
+    while not EARLY_BREAK:
+        if button_press % 10000 == 0:
+            print(button_press)
+        controller.push_button(button_press)
+        button_press += 1
 
-    print(conjunc_inputs)
-    return controller.steps_till_modules_high(conjunc_inputs)
-
+    return button_press
 
 
 
