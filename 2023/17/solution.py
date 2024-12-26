@@ -3,6 +3,8 @@ import re
 from queue import PriorityQueue
 from math import sqrt
 
+import numpy as np
+
 
 def read_file(fileaddr):
     lines = []
@@ -27,73 +29,39 @@ WEST = 3
 DIRS = [NORTH, EAST, SOUTH, WEST]
 
 
-def get_enterable_neighbours(lines, curr, last_dir, last_dir_count):
+def get_enterable_neighbours(grid, curr, last_dir, last_dir_count):
     nbs = []
-    (row, col) = curr
+    x, y = curr
+    rows = len(grid)
+    cols = len(grid[0])
 
-    # Move North from current
-    if row > 0 and (last_dir_count < 3 or last_dir != NORTH) and last_dir != SOUTH:
-        nbs.append(((row-1, col), NORTH))
-    # Move East from current
-    if col < len(lines[row])-1 and (last_dir_count < 3 or last_dir != EAST) and last_dir != WEST:
-        nbs.append(((row, col+1), EAST))
-    # Move South from current
-    if row < len(lines)-1 and (last_dir_count < 3 or last_dir != SOUTH) and last_dir != NORTH:
-        nbs.append(((row+1, col), SOUTH))
-    # Move West from current
-    if col > 0 and (last_dir_count < 3 or last_dir != WEST) and last_dir != EAST:
-        nbs.append(((row, col-1), WEST))
+    if y > 0 and (last_dir_count < 3 or last_dir != NORTH) and last_dir != SOUTH:
+        nbs.append(((x, y-1), NORTH))
+    if x < cols-1 and (last_dir_count < 3 or last_dir != EAST) and last_dir != WEST:
+        nbs.append(((x+1, y), EAST))
+    if y < rows-1 and (last_dir_count < 3 or last_dir != SOUTH) and last_dir != NORTH:
+        nbs.append(((x, y+1), SOUTH))
+    if x > 0 and (last_dir_count < 3 or last_dir != WEST) and last_dir != EAST:
+        nbs.append(((x-1, y), WEST))
     
     return nbs
 
 
 
 
-class State:
-    def __init__(self, new_cell, new_dir, last_state):
-        if last_state is not None:
-            self.path = last_state.path.copy()
-        else:
-            self.path = []
-        self.path.append(new_cell)
-
-        # Join with previous move
-        if last_state is not None and last_state.last_move == new_dir:
-            self.last_move = new_dir
-            self.last_move_count = last_state.last_move_count + 1
-        # Discard previous move, we've changed direction
-        elif new_dir is not None:
-            self.last_move = new_dir
-            self.last_move_count = 1
-        else:
-            self.last_move = None
-            self.last_move_count = 0
-
-    def endpoint(self):
-        if self.path is None:
-            return None
-        return self.path[-1]
-
-    def gen_move_to(self, next_cell, dir):
-        return State(next_cell, dir, self)
-
-    def __repr__(self):
-        return f"(Path: ..{self.path[-2:]}, last_move: {last_move_to_symbol(self.last_move)})"
-
-
 # Calculate square of L2-Norm (square of Pythagorean Distance)
 def calc_direct_distance(pos1, pos2):
-    return sqrt((pos1[0] - pos2[0])**2 + (pos1[1]-pos2[1])**2)
+    return sqrt((pos1[0]-pos2[0])**2 + (pos1[1]-pos2[1])**2)
 
 
-def last_move_to_symbol(dir):
-    if dir == EAST:
+def last_move_to_symbol(facing):
+    if facing == EAST:
         return '>'
-    elif dir == NORTH:
+    elif facing == NORTH:
         return '^'
-    elif dir == SOUTH:
+    elif facing == SOUTH:
         return 'v'
-    elif dir == WEST:
+    elif facing == WEST:
         return '<'
     else:
         return 'X'
@@ -104,107 +72,134 @@ INF = 100000000
 
 ## Solve Part One
 def part_one(fileaddr):
-    lines = read_file(fileaddr)
-    # print(lines)
+    grid = read_file(fileaddr)
+
+    rows = len(grid)
+    cols = len(grid[0])
 
     # Coordinates in y-x form
     source = (0,0)
-    dest = (len(lines)-1, len(lines[0])-1)
+    dest = (rows-1,cols-1)
 
-    # min_cost[r][c][d] is the minimum heat-loss in any path from the start
-    # to cell at row r, column c, entering via direction d (0-3)
-    min_cost = [[[[INF,INF,INF,INF] for dir in DIRS] for x in line] for line in lines]
-    moves_used = [[[INF,INF,INF,INF] for x in line] for line in lines]
+    # min_cost[r][c][d] is the minimum heat-loss in any path from the start to cell at row r, column c, 
+    # when entering via direction d (0-3)
+    min_cost = np.full((rows,cols,4),INF)
+
+    # moves_used = [[[INF,INF,INF,INF] for x in line] for line in lines]
+
+    frontier = []
+    frontier.append((source, ""))
+
+    # frontier = PriorityQueue()
+    # frontier.put(((source,"",0)))
+
+    grid_marked = np.array(grid, dtype='str').copy()
 
     frontier = PriorityQueue()
-    frontier.put((calc_direct_distance(source, dest), 0, State(source, None, None)))
-    min_cost[source[0]][source[1]] = [[0,0,0] for dir in DIRS]
+    frontier.put((calc_direct_distance(source, dest), source, "", source))
+    min_cost[source[1]][source[0]] = 0
 
-    seen = set()
+    print(min_cost)
+
+    visited = np.zeros((rows, cols))
     iters = 0
+    max_iters = 10000
 
-    prev_state = {}
+    prev = np.zeros((rows,cols,2), dtype='int')
 
-    while not frontier.empty(): # and dest not in seen:
-        (_, _, curr_state) = frontier.get()
-        curr = curr_state.endpoint()
+    # while len(frontier) > 0:
+    while frontier.not_empty:
+        iters += 1
+        if iters > max_iters:
+            print(f"Exit after {iters} iterations!")
+            break
 
-        # Compare the number of consecutive moves (in dir) required to reach nb
-        new_moves = curr_state.last_move_count
+        top = frontier.get()
+        _, curr, move_state, prev_cell = top
+
+        cx,cy = curr
 
 
-        if curr_state.last_move is not None:
-            curr_cost = min([
-                # by the same direction with up to the same number of moves
-                min(min_cost[curr[0]][curr[1]][curr_state.last_move][0:curr_state.last_move_count]),
-                # by a perpendicular direction with any number of moves
-                min(min_cost[curr[0]][curr[1]][(curr_state.last_move+1)%4]),
-                min(min_cost[curr[0]][curr[1]][(curr_state.last_move+3)%4])
-                # don't check the opposite direction [ (dir+2)%4 ], since the box can't move back on itself
-            ])
+        prev[cy][cx] = prev_cell
+        print(prev_cell, "~>", curr)
+
+        ## Determine which direction we're facing and how many moves weve used consecutively
+        moves_used = len(move_state)
+        facing = None
+        if moves_used > 0:
+            facing = int(move_state[0])
+            grid_marked[prev_cell[1]][prev_cell[0]] = '^>v<'[facing]
+
+        print(f"At ({cx},{cy}) from move(s) {move_state} with total cost", min_cost[cy][cx][facing])
+
+        if facing:
+            curr_cost = min_cost[cy][cx][facing]
         else:
-            curr_cost = 0
+            curr_cost = min_cost[cy][cx].min()
 
-        print(curr_cost)
+        if cx == dest[0] and cy == dest[1]:
+            break
+        
+        visited[cy][cx] = 1
 
-        seen.add(curr)
+        for nb, new_facing in get_enterable_neighbours(grid, curr, facing, moves_used):
+            nx,ny = nb
+            new_move_state = move_state
 
-        for nb, dir in get_enterable_neighbours(lines, curr, curr_state.last_move, curr_state.last_move_count):
-            new_state = curr_state.gen_move_to(nb, dir)
+            if facing is not None and new_facing == (facing+2)%4:
+                continue
 
-            # Find the previous lowest-cost to reach this neighbour
-            old_cost = min([
-                # by the same direction with no more moves
-                min(min_cost[nb[0]][nb[1]][dir][0:new_state.last_move_count]),
-                # by a perpendicular direction with any number of moves
-                min(min_cost[nb[0]][nb[1]][(dir+1)%4]),
-                min(min_cost[nb[0]][nb[1]][(dir+3)%4])
-                # don't check the opposite direction [ (dir+2)%4 ], since the box can't move back on itself
-            ])
+            if new_facing == facing:
+                ## Moving in same direction
+                new_move_state += str(new_facing)
+            else:
+                new_move_state = str(new_facing)
 
-            new_cost = curr_cost + lines[nb[0]][nb[1]]
+            # Find the previous lowest-cost to reach this neighbour facing this direction
+            old_cost = min_cost[ny][nx][new_facing]
+            new_cost = curr_cost + grid[ny][nx]
 
-            priority = new_cost
+            # print(old_cost, "vs", new_cost)
             
-            print(f"Considering {new_state} with cost: {new_cost} vs old_cost: {old_cost}")
-
-            if nb not in seen or old_cost == INF or new_cost < old_cost:
-                iters += 1
-                if nb in prev_state.keys():
-                    prev_state[nb][dir] = curr_state
-                else:
-                    prev_state[nb] = { dir: curr_state }
-
-                # min_cost[c][d][m] is the minimum heat-loss required to enter cell c, with at most m
-                # consecutive movements in direction d immediately before entering
-                for m in range(new_moves, 3):
-                    min_cost[nb[0]][nb[1]][dir][m] = min(new_cost, min_cost[nb[0]][nb[1]][dir][m])
-                
-                for m in range(0, 3):
-                    min_cost[nb[0]][nb[1]][(dir+1)%4][m] = min(new_cost, min_cost[nb[0]][nb[1]][(dir+1)%4][m])
-                    min_cost[nb[0]][nb[1]][(dir+3)%4][m] = min(new_cost, min_cost[nb[0]][nb[1]][(dir+3)%4][m])
-
-                frontier.put((priority, iters, new_state))
-                seen.add(nb)
+            if visited[ny][nx] == 0 or new_cost < old_cost:
+                new_heuristic = new_cost + calc_direct_distance(nb,dest)
+                frontier.put((new_heuristic, nb, new_move_state, (cx,cy)))
+                min_cost[ny][nx][new_facing] = new_cost
+                visited[ny][nx] = 1
 
     # print_grid(min_cost)
 
-    cost_to_goal = min_cost[dest[0]][dest[1]]
-    print(cost_to_goal)
-    dir = -1
-    min_cost = INF
-    for d in DIRS:
-        goal_cost = min(cost_to_goal[d])
-        if goal_cost < min_cost and d in prev_state[dest]:
-            dir = d
-            min_cost = goal_cost
+    dx,dy = dest
 
-    path = prev_state[dest][dir].path
-    for cell in path:
-        lines[cell[0]][cell[1]] = '-'
+    cost_to_goal = min_cost[dy][dx].astype('int')
 
-    print_grid(lines, as_string=True)
-    return min(cost_to_goal[dir])
+    print("Goal reachable in:",cost_to_goal)
+
+    ## Reconstruct and show the optimum path
+
+    # vecs = [[0,-1],[1,0],[0,1],[-1,0]]
+
+    # path = []
+    # cx,cy = dest
+    # while True:
+    #     # facing = entered[cy][cx]
+    #     # if facing == -1:
+    #     #     break
+    #     print(cx,cy,facing)
+    #     # v = vecs[facing]
+    #     px,py = prev[cy][cx]
+    #     if px == cx and py == cy:
+    #         break
+    #     path.append((cx,cy))
+    #     cx,cy = px,py
+    #     if cx >= cols or cy >= rows or cx < 0 or cy < 0:
+    #         break
+
+    # for x,y in path:
+    #     grid_marked[y][x] = '-'
+
+    print_grid(grid_marked, as_string=True)
+    return cost_to_goal.min()
 
 
 
