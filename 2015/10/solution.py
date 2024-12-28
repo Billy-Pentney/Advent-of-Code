@@ -30,23 +30,30 @@ def rle(string):
     return output
 
 
+def run_rle_iters(string, iters=1, verbose=False):
+    result = string
 
-## Solve Part One
-def part_one(fileaddr, iters=1):
-    line = read_file(fileaddr)
-    result = line
-
-    for iters in range(iters):
+    for i in range(iters):
         result2 = rle(result)
         # print(f"{result} -> {result2}")
         result = result2
+        if verbose:
+            print(f"After iter {i+1}, length={len(result)}")
 
     return len(result)
 
 
+
+## Solve Part One
+def part_one(fileaddr):
+    line = read_file(fileaddr)
+    return run_rle_iters(line, 40)
+
+
 ## Solve Part Two
 def part_two(fileaddr):
-    return
+    line = read_file(fileaddr)
+    return run_rle_iters(line, 50, verbose=True)
 
 
 
@@ -67,8 +74,8 @@ if __name__ == '__main__':
         print(f"Could not find file at location {fileaddr}")
         exit(1)
 
-    part_one_ans = part_one(fileaddr, 40)
+    part_one_ans = part_one(fileaddr)
     print(f"(Part 1) Solution: {part_one_ans}")
     
-    # part_two_ans = part_two(fileaddr)
-    # print(f"(Part 2) Solution: {part_two_ans}")
+    part_two_ans = part_two(fileaddr)
+    print(f"(Part 2) Solution: {part_two_ans}")
