@@ -14,7 +14,6 @@ from ast import literal_eval
 ## Solve Part One
 def part_one(fileaddr):
     lines = read_file(fileaddr)
-
     total_diff = 0
 
     for line in lines:
@@ -27,9 +26,30 @@ def part_one(fileaddr):
     return total_diff
 
 
+
+
+def re_encode(string: str):
+    ## Escape any back-slashes and escape speech marks
+    encoded = string.replace("\\", "\\\\").replace('"', "\\\"")
+    ## Surround in unescaped speech marks
+    return f'"{encoded}"'
+    
+
+
 ## Solve Part Two
 def part_two(fileaddr):
-    return
+    lines = read_file(fileaddr)
+    total_diff = 0
+
+    for line in lines:
+        encoded = re_encode(line)
+        enc_length = len(encoded)
+        code_length = len(line)
+        diff = enc_length - code_length
+        print(f"{line} -> {encoded}...".ljust(50), f"{enc_length}-{code_length}={diff}".rjust(10))
+        total_diff += diff
+
+    return total_diff
 
 
 
@@ -53,5 +73,5 @@ if __name__ == '__main__':
     part_one_ans = part_one(fileaddr)
     print(f"(Part 1) Solution: {part_one_ans}")
     
-    # part_two_ans = part_two(fileaddr)
-    # print(f"(Part 2) Solution: {part_two_ans}")
+    part_two_ans = part_two(fileaddr)
+    print(f"(Part 2) Solution: {part_two_ans}")
