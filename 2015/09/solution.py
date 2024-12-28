@@ -33,52 +33,59 @@ def read_file(fileaddr):
 import numpy as np
 
 
-def find_min_hamiltonian(curr, adj_list, seen):
-    min_cost = 0
+def find_hamiltonian_cost(curr, adj_list, seen, metric='min'):
+    optimum_cost = 0
     nb_dict = adj_list[curr]
 
     for nb, cost in nb_dict.items():
         if nb in seen:
             continue
             
-        ## Calculate the min hamiltonian from this neighbour
+        ## Calculate the hamiltonian-path from this neighbour
         next = seen.copy()
         next.add(nb)
-        path_cost = cost + find_min_hamiltonian(nb, adj_list, next)
+        path_cost = cost + find_hamiltonian_cost(nb, adj_list, next, metric)
 
-        if min_cost == 0 or path_cost < min_cost:
-            min_cost = path_cost
+
+        if optimum_cost == 0:
+            optimum_cost = path_cost
+        elif metric == 'min' and path_cost < optimum_cost:
+            optimum_cost = path_cost
+        elif metric == 'max' and path_cost > optimum_cost:
+            optimum_cost = path_cost
 
         # print(" "*(len(seen)+1), nb, cost)
 
-    return min_cost
+    return optimum_cost
 
 
 
 ## Solve Part One
-def part_one(fileaddr):
+def solve(fileaddr, part=1):
     adj_list = read_file(fileaddr)
-    print(adj_list.items())
 
-    min_dist = None
+    optimum_dist = None
+
+    if part == 1:
+        metric = 'min'
+    else:
+        metric = 'max'
 
     for start in adj_list.keys():
         seen = set()
         seen.add(start)
-        dist = find_min_hamiltonian(start, adj_list, seen)
-        if min_dist is None or dist < min_dist:
-            min_dist = dist
-        print(f"From {start}: {dist}")
+        dist = find_hamiltonian_cost(start, adj_list, seen, metric)
 
-    return min_dist
+        if optimum_dist is None:
+            optimum_dist = dist
+        elif metric == 'min' and dist < optimum_dist:
+            optimum_dist = dist
+        elif metric == 'max' and dist > optimum_dist:
+            optimum_dist = dist
 
+        print(f" > {start}: {dist}")
 
-## Solve Part Two
-def part_two(fileaddr):
-    return
-
-
-
+    return optimum_dist
 
 
 
@@ -96,8 +103,8 @@ if __name__ == '__main__':
         print(f"Could not find file at location {fileaddr}")
         exit(1)
 
-    part_one_ans = part_one(fileaddr)
+    part_one_ans = solve(fileaddr, part=1)
     print(f"(Part 1) Solution: {part_one_ans}")
     
-    # part_two_ans = part_two(fileaddr)
-    # print(f"(Part 2) Solution: {part_two_ans}")
+    part_two_ans = solve(fileaddr, part=2)
+    print(f"(Part 2) Solution: {part_two_ans}")
