@@ -109,7 +109,21 @@ def part_one(fileaddr):
 
 ## Solve Part Two
 def part_two(fileaddr):
-    return
+    happiness = read_file(fileaddr)
+    
+    ## Add me
+    me = 'Me'
+    names = happiness.keys()
+    happiness[me] = {}
+    for name in names:
+        ## Neutral with all individuals
+        happiness[name][me] = 0
+        happiness[me][name] = 0
+
+    n = len(happiness.keys())
+    alloc = ['' for i in range(n)]
+    best_happiness = greedy_allocate(alloc, 0, happiness)
+    return best_happiness
 
 
 
@@ -133,5 +147,5 @@ if __name__ == '__main__':
     part_one_ans = part_one(fileaddr)
     print(f"(Part 1) Solution: {part_one_ans}")
     
-    # part_two_ans = part_two(fileaddr)
-    # print(f"(Part 2) Solution: {part_two_ans}")
+    part_two_ans = part_two(fileaddr)
+    print(f"(Part 2) Solution: {part_two_ans}")
