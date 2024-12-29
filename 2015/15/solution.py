@@ -35,7 +35,7 @@ def read_file(fileaddr):
     return ingredients
 
 
-def find_max_score(ingredients, alloc, remaining, attrs):
+def find_max_score(ingredients, alloc, remaining, attrs, req_calories=None, verbose=False):
     i = len(alloc)
     if i >= len(ingredients):
         return 0
@@ -49,9 +49,11 @@ def find_max_score(ingredients, alloc, remaining, attrs):
         alloc.append(amt)
         recurse_score = attrs + (ingredient*amt)
         sum = np.product(np.clip(recurse_score[:4], 0, None))
-        if sum > 0:
+        if verbose and sum > 0:
             print(" * ", alloc, "...", sum)
-        return sum
+        if req_calories is None or recurse_score[4] == req_calories:
+            return sum
+        return 0
 
     max_sum = 0
 
@@ -61,7 +63,12 @@ def find_max_score(ingredients, alloc, remaining, attrs):
         recurse_score = attrs + (ingredient*amt)
         alloc_2 = alloc.copy()
         alloc_2.append(amt)
-        recurse_sum = find_max_score(ingredients, alloc_2, remaining-amt, recurse_score)
+
+        if req_calories is not None and recurse_score[4] > req_calories:
+            ## Skip as we've exceeded the calorie target
+            continue
+
+        recurse_sum = find_max_score(ingredients, alloc_2, remaining-amt, recurse_score, req_calories, verbose)
 
         ## Take the highest sum
         if recurse_sum > max_sum:
@@ -81,13 +88,17 @@ def part_one(fileaddr):
         print(name, ":", attrs)
 
     ingredient_list = list(ingredients.values())
-    return int(find_max_score(ingredient_list, [], 100, np.zeros(5)))
+    return int(find_max_score(ingredient_list, [], 100, attrs=np.zeros(5), req_calories=None, verbose=False))
 
 
 ## Solve Part Two
 def part_two(fileaddr):
-    return
+    ingredients = read_file(fileaddr)
+    for name, attrs in ingredients.items():
+        print(name, ":", attrs)
 
+    ingredient_list = list(ingredients.values())
+    return int(find_max_score(ingredient_list, [], 100, attrs=np.zeros(5), req_calories=500, verbose=False))
 
 
 
@@ -110,5 +121,5 @@ if __name__ == '__main__':
     part_one_ans = part_one(fileaddr)
     print(f"(Part 1) Solution: {part_one_ans}")
     
-    # part_two_ans = part_two(fileaddr)
-    # print(f"(Part 2) Solution: {part_two_ans}")
+    part_two_ans = part_two(fileaddr)
+    print(f"(Part 2) Solution: {part_two_ans}")
