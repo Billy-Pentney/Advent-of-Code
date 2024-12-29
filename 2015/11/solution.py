@@ -106,17 +106,24 @@ def part_one(fileaddr):
     # print("".join(pword))
 
     max_iters = 1000000
+    printerval = 20000
 
-    while not check_valid(pword_num) and i < max_iters:
+    keep_incrementing = True
+
+    while keep_incrementing:
         new_pword_num = inc_num_password(pword_num)
         new_pword = to_chars(new_pword_num)
 
         new_pword_joined = "".join(new_pword)
-        if i % 10000 == 0:
+
+        ## Print every kth password
+        if i % printerval == 0:
             print(f" -> {new_pword_joined}")
+
         pword_num = new_pword_num
         pword = new_pword
         i+=1
+        keep_incrementing = not check_valid(pword_num) and i < max_iters
 
     if not check_valid(pword_num):
         print("Iteration limit reached!")
