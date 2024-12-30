@@ -10,22 +10,30 @@ def read_file(fileaddr):
     return buckets
 
 
-def recurse(buckets, capacity):
+def find_ways(buckets, capacity, used):
+    """
+        Recursively compute all unique subsets of buckets which sum to the given capacity, while using the used list.
+        Returns a list of valid combinations of buckets.
+    """
     if capacity < 0:
-        return 0
+        return []
     elif capacity == 0:
-        return 1
-    
-    # depth = 4-len(buckets)
-    
-    num_ways = 0
+        return [used]
+        
+    ways = []
     for i,bucket in enumerate(buckets):
         # print(" |"+"-"*depth,bucket)
         remaining_buckets = buckets[i+1:]
+        new_used = used.copy()
+        new_used.append(bucket)
         remaining_capacity = capacity - bucket
-        num_ways += recurse(remaining_buckets, remaining_capacity)
+        new_ways = find_ways(remaining_buckets, remaining_capacity, new_used)
+        ways.extend(new_ways)
+        
+    return ways
 
-    return num_ways
+
+
 
 
 
@@ -33,13 +41,20 @@ def recurse(buckets, capacity):
 def part_one(fileaddr, total=150):
     buckets = read_file(fileaddr)
     sorted_buckets = sorted(buckets, reverse=True)
-    ways = recurse(sorted_buckets, total)
-    return ways
+    ways = find_ways(sorted_buckets, total, used=[])
+    return len(ways)
 
 
 ## Solve Part Two
-def part_two(fileaddr):
-    return
+def part_two(fileaddr, total=150):
+    buckets = read_file(fileaddr)
+    sorted_buckets = sorted(buckets, reverse=True)
+    ways = find_ways(sorted_buckets, total, used=[])
+
+    lengths = [len(way) for way in ways]
+    min_len = min(lengths)
+    
+    return sum([1 for len in lengths if len == min_len])
 
 
 
@@ -60,8 +75,10 @@ if __name__ == '__main__':
         print(f"Could not find file at location {fileaddr}")
         exit(1)
 
-    part_one_ans = part_one(fileaddr)
+    total = 150
+
+    part_one_ans = part_one(fileaddr, total)
     print(f"(Part 1) Solution: {part_one_ans}")
     
-    # part_two_ans = part_two(fileaddr)
-    # print(f"(Part 2) Solution: {part_two_ans}")
+    part_two_ans = part_two(fileaddr, total)
+    print(f"(Part 2) Solution: {part_two_ans}")
