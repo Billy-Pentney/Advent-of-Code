@@ -29,27 +29,40 @@ def show_grid(grid):
 
 
 ## Solve Part One
-def part_one(fileaddr):
+def part_one(fileaddr, n_iters, corners_on=False, show_steps=False):
     grid = read_file(fileaddr)
-    show_grid(grid)
-
-    n_iters = 100
-    print("Num iterations:", n_iters)
 
     rows = grid.shape[0]
     cols = grid.shape[1]
+
+    grid[0][0] = '#'
+    grid[0][cols-1] = '#'
+    grid[rows-1][0] = '#'
+    grid[rows-1][cols-1] = '#'
+
+    show_grid(grid)
+    print("Num iterations:", n_iters)
 
     for i in range(n_iters):
         new_grid = np.full(grid.shape, '.')
 
         for y in range(rows):
             for x in range(cols):
+                if corners_on and x in [0, cols-1] and y in [0, rows-1]:
+                    new_grid[y][x] = '#'
+                    continue
+
                 is_on = grid[y][x] == '#'
                 on_nbs = sum([1 for nx,ny in get_neighbours(x,y,rows,cols) if grid[ny][nx] == '#'])
                 if on_nbs == 3 or (is_on and on_nbs == 2):
                     new_grid[y][x] = '#'
 
         grid = new_grid
+        if show_steps:
+            print(f"After {i+1} steps...")
+            show_grid(grid)
+            print()
+        
 
     print("After...")
     show_grid(grid)
@@ -58,8 +71,8 @@ def part_one(fileaddr):
 
 
 ## Solve Part Two
-def part_two(fileaddr):
-    return
+def part_two(fileaddr, n_iters):
+    return part_one(fileaddr, n_iters, corners_on=True)
 
 
 
@@ -73,15 +86,16 @@ def part_two(fileaddr):
 if __name__ == '__main__':
     args = sys.argv[1:]
     filename = args[0]
-    # part = args[1]
+
+    n_iters = int(args[1])
     fileaddr = os.path.dirname(os.path.realpath(sys.argv[0])) + "\\" + args[0]
 
     if not os.path.exists(fileaddr):
         print(f"Could not find file at location {fileaddr}")
         exit(1)
 
-    part_one_ans = part_one(fileaddr)
+    part_one_ans = part_one(fileaddr, n_iters)
     print(f"(Part 1) Solution: {part_one_ans}")
     
-    # part_two_ans = part_two(fileaddr)
-    # print(f"(Part 2) Solution: {part_two_ans}")
+    part_two_ans = part_two(fileaddr, n_iters)
+    print(f"(Part 2) Solution: {part_two_ans}")
