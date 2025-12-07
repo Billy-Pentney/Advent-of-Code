@@ -28,8 +28,8 @@ if __name__ == '__main__':
 if __name__ == '__main__':
 
     arg_parser = ArgumentParser()
-    arg_parser.add_argument('-year', type=int, help='Year of the challenge')
-    arg_parser.add_argument('-days', type=int, nargs='+', help='Days to create')
+    arg_parser.add_argument('--year', '-y', type=int, help='Year of the challenge')
+    arg_parser.add_argument('--days', '-d', type=int, nargs='+', help='Days to create')
 
     args = arg_parser.parse_args()
 
