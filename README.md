@@ -41,7 +41,7 @@ would make the following files from the template:
 | 2015 | 25             | 16 ✅ + 2 🟡   | 16 ✅          |
 | 2023 | 25             | 21 ✅ + 2 🟡   | 16 ✅ + 3 🟡   |
 | 2024 | 25             | 22 ✅ + 2 🟡   | 20 ✅ + 2 🟡   |
-| 2025 | 12             | 8 ✅           | 8 ✅            |
+| 2025 | 12             | 9 ✅           | 8 ✅ + 1 🟡    |
 
 **Note 1:** From 2025, the creator of AoC made a decision to reduce the number of problems to 12.
 
@@ -199,7 +199,7 @@ would make the following files from the template:
 |:---:|:------:|:------:|
 | 7   | ✅ | ✅ |
 | 8   | ✅ | ✅ |
-| 9   | ⚫ | ⚫ |
+| 9   | ✅ | 🟡 |
 | 10  | ⚫ | ⚫ |
 | 11  | ⚫ | ⚫ |
 | 12  | ⚫ | ⚫ |
