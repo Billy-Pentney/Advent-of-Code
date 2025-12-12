@@ -107,7 +107,7 @@ def is_point_enclosed(pt, border):
 
         ## Keep stepping until we reach the edge
         while x >= 0 and x < max_x and y >= 0 and y < max_y:
-            # print(x,y)
+            print(x,y)
             x += vec[0]
             y += vec[1]
             ## If we cross the border
@@ -161,6 +161,81 @@ def find_rectangle_border(pt1, pt2):
         y -= 1
     return border
 
+def find_rectangle_points(pt1, pt2):
+    x1,x2 = min(pt2[0],pt1[0]),max(pt2[0],pt1[0])
+    y1,y2 = min(pt2[1],pt1[1]),max(pt2[1],pt1[1])
+    all_pts = [
+        (x,y)
+        for x in range(x1,x2)
+        for y in range(y1,y2)
+    ]
+    return all_pts
+
+
+
+
+from queue import Queue
+
+def flood_to_fill_inner(start, border):
+    frontier = Queue()
+    frontier.put(start)
+
+    maxs = np.max(border, axis=0)
+    max_x = maxs[0]
+    max_y = maxs[1]
+    visited = set()
+
+    ## BFS to explore until we reach the edge of the grid
+    while not frontier.empty():
+        curr = frontier.get()
+        if curr in visited:
+            continue
+        # print(curr)
+        visited.add(curr)
+        x,y = curr
+        nbs = [(x-1,y),(x,y-1),(x+1,y),(x,y+1)]
+
+        for nx,ny in nbs:
+            if nx < 0 or ny < 0 or nx > max_x or ny > max_y:
+                ## Spread outside the known red/green regions
+                return None
+            elif (nx,ny) not in visited and (nx,ny) not in border:
+                frontier.put((nx,ny))
+            
+    return visited
+
+
+
+def find_enclosed_pts(coords, border):
+    ## Find the line between the first two points
+    (x1,y1) = coords[0]
+    (x2,y2) = coords[1]
+
+    x1,x2 = min(x1,x2),max(x1,x2)
+    y1,y2 = min(y1,y2),max(y1,y2)
+
+    x3,y3 = (x1+(x2-x1)//2, y1+(y2-y1)//2)
+
+    if y1 == y2:
+        ## Horizontal line, check above/below the midpoint
+        area = flood_to_fill_inner((x3,y3-1), border)
+        if area is None:
+            print("Not above")
+            ## Check below the line
+            area = flood_to_fill_inner((x3,y3+1), border)
+    else:
+        ## Vertical line, check left/right of the midpoint
+        area = flood_to_fill_inner((x3-1,y3), border)
+        if area is None:
+            print("Not left")
+            ## Check right of the line
+            area = flood_to_fill_inner((x3+1,y3), border)
+
+    if not area:
+        return []
+    
+    return area
+
 
 
 
@@ -169,6 +244,11 @@ def find_largest_enclosed_rectangle(coords):
     max_area = 0
     chosen = (0,1)
     total_pairs = len(coords) * (len(coords)-1) / 2
+
+    border = find_border_pts(coords)
+    print(border)
+    enclosed_area = find_enclosed_pts(coords, border)
+    print(enclosed_area)
 
     progress = 0
     for i,pt1 in enumerate(coords):
@@ -182,33 +262,26 @@ def find_largest_enclosed_rectangle(coords):
             if area <= max_area:
                 continue
 
-            valid_candidate = True
+            rect_points = find_rectangle_points((x1,y1), (x2,y2))
             rect_border = find_rectangle_border((x1,y1), (x2,y2))
-            ## Remove the known included points
-            rect_border = set(rect_border).difference(border)
-            print(rect_border)
+            ## Find all points in the rectangle that aren't in the red/green region
+            rect_points = set(rect_points).difference(rect_border)
+            rect_not_enclosed = set(rect_points).difference(enclosed_area) 
 
-            ## Check all cells in the rectngle are in the border
-            for x,y in rect_border:
-                # print("Checking", (x,y), "is in border")
-                if not is_point_enclosed((x,y), border):
-                    valid_candidate = False
-                    break
-
-            if valid_candidate:
-                # print("New best: ", (i,i+1+j), f" with area {area}")
+            if len(rect_not_enclosed) == 0:
+                print("New best: ", (i,i+1+j), f" with area {area}")
                 max_area = area
                 chosen = (i,i+1+j)
 
     print(coords[chosen[0]], coords[chosen[1]])
-    # grid = construct_grid_part_2(coords)
-    # x1,y1 = coords[chosen[0]]
-    # x2,y2 = coords[chosen[1]]
-    # grid[y1,x1] = CORNER
-    # grid[y1,x2] = CORNER
-    # grid[y2,x1] = CORNER
-    # grid[y2,x2] = CORNER
-    # display_grid(grid)
+    grid = construct_grid_part_2(coords)
+    x1,y1 = coords[chosen[0]]
+    x2,y2 = coords[chosen[1]]
+    grid[y1,x1] = CORNER
+    grid[y1,x2] = CORNER
+    grid[y2,x1] = CORNER
+    grid[y2,x2] = CORNER
+    display_grid(grid)
     return max_area
 
 
@@ -223,6 +296,10 @@ if __name__ == '__main__':
     fname = argv[1]
 
     coords = load(fname)
+
+    # largest_rect_area = find_largest_rectangle(coords)
+    # print("Part 1:", largest_rect_area)
+
     # grid = construct_grid_part_2(coords)
 
     # border = find_border_pts(coords)
@@ -232,9 +309,6 @@ if __name__ == '__main__':
     #             grid[y,x] = ENCLOSED
 
     # display_grid(grid)
-
-    largest_rect_area = find_largest_rectangle(coords)
-    print("Part 1:", largest_rect_area)
 
     largest_enclosed_rect_area = find_largest_enclosed_rectangle(coords)
     print("Part 2:", largest_enclosed_rect_area)
