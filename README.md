@@ -200,7 +200,7 @@ would make the following files from the template:
 | 7   | ✅ | ✅ |
 | 8   | ✅ | ✅ |
 | 9   | ⚫ | ⚫ |
-| 10  | ⚫ | ⚫ |
+| 10  | ✅ | ⚫ |
 | 11  | ⚫ | ⚫ |
 | 12  | ⚫ | ⚫ |
 
