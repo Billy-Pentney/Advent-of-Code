@@ -109,8 +109,8 @@ def find_max_presses_for_joltage(buttons, available_btn_idx, curr, curr_presses=
     ##  - there's no buttons left to press
     ##  - any joltage has exceeded the target
     ##  - we've found a solution but the current solution is more expensive
-    # if len(available_btn_idx) < 1 or min(curr) < 0 or (max_presses and curr_presses > max_presses):
-    #     return None
+    if len(available_btn_idx) < 1 or min(curr) < 0 or (max_presses and curr_presses > max_presses):
+        return None
         
     ## Use memoization of the solutions
     if tuple(curr) in max_presses_cache.keys():
@@ -172,9 +172,15 @@ def find_max_presses_for_joltage(buttons, available_btn_idx, curr, curr_presses=
             break
 
         if verbose:
-            indent = " " * (len(buttons) - len(new_available_btn_idx))
+            indent = " " * (len(buttons) - len(available_btn_idx))
             print(indent, curr, "-", str(i) + "*" + str(button_val), "=", remainder, f"(curr={curr_presses+i}, max={max_presses})")
         
+        new_available_btn_idx = sorted(
+            new_available_btn_idx, 
+            key=lambda i: sum(curr * buttons[i]),
+            reverse=True
+        )
+
         ## Press the first button and then solve recursively
         num_presses = find_max_presses_for_joltage(buttons, new_available_btn_idx, remainder, curr_presses+i, max_presses)
         if num_presses is not None:
@@ -236,7 +242,7 @@ def find_total_presses_for_joltage(machines):
         ## (Heuristic) sort the remaining buttons by the amount of joltage values they contribute to
         available_btn_idx = sorted(
             range(len(buttons_nums)), 
-            key=lambda i: np.count_nonzero(buttons_nums[i] > 0), 
+            key=lambda i: tuple(joltage * buttons_nums[i]), 
             reverse=True
         )
 
