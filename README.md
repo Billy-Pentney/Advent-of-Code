@@ -201,7 +201,7 @@ would make the following files from the template:
 | 8   | ✅ | ✅ |
 | 9   | ⚫ | ⚫ |
 | 10  | ⚫ | ⚫ |
-| 11  | ⚫ | ⚫ |
+| 11  | ✅ | ✅ |
 | 12  | ⚫ | ⚫ |
 
 </td></tr> </table>
