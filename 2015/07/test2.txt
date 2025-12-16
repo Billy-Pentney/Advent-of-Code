@@ -1,0 +1,2 @@
+1 AND cx -> a
+NOT 1000 -> cx
