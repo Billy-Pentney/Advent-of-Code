@@ -100,7 +100,7 @@ would make the following files from the template:
 
 | Day | Part 1 | Part 2 |
 |:---:|:------:|:------:|
-| 1   | ❌ | ❌ |
+| 1   | ✅ | ✅ |
 | 2   | ❌ | ❌ |
 | 3   | ❌ | ❌ |
 | 4   | ❌ | ❌ |
