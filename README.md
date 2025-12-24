@@ -106,7 +106,7 @@ would make the following files from the template:
 | 4   | ✅ | ✅ |
 | 5   | ✅ | ✅ |
 | 6   | ✅ | ✅ |
-| 7   | ❌ | ❌ |
+| 7   | ✅ | ✅ |
 | 8   | ❌ | ❌ |
 | 9   | ❌ | ❌ |
 
