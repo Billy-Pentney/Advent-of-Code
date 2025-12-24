@@ -107,7 +107,7 @@ would make the following files from the template:
 | 5   | ✅ | ✅ |
 | 6   | ✅ | ✅ |
 | 7   | ✅ | ✅ |
-| 8   | ❌ | ❌ |
+| 8   | ✅ | ✅ |
 | 9   | ❌ | ❌ |
 
 </td><td valign="top">
