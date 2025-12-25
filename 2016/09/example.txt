@@ -1,0 +1,4 @@
+X(8x2)(3x3)ABCY
+A(2x2)BCD(2x2)EFG
+A(1x5)BC
+(6x1)(1x3)A
