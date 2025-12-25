@@ -7,14 +7,14 @@ from argparse import ArgumentParser
 DEFAULT_PYTHON_SCRIPT = \
 """
 import numpy as np
-
+# import regex as re
+# from collections import defaultdict
 
 def load(fname):
     with open(fname, "r") as file:
         grid = [list(row.strip("\\n")) for row in file.readlines()]
 
     return np.array(grid)
-
 
 
 from sys import argv
