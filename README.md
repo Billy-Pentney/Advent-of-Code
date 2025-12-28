@@ -118,7 +118,7 @@ would make the following files from the template:
 | 10  | ✅ | ✅ |
 | 11  | ✅ | ✅ |
 | 12  | ✅ | ✅ |
-| 13  | ❌ | ❌ |
+| 13  | ✅ | ✅ |
 | 14  | ❌ | ❌ |
 | 15  | ❌ | ❌ |
 | 16  | ❌ | ❌ |
