@@ -116,7 +116,7 @@ would make the following files from the template:
 | Day | Part 1 | Part 2 |
 |:---:|:------:|:------:|
 | 10  | ✅ | ✅ |
-| 11  | ❌ | ❌ |
+| 11  | ✅ | ✅ |
 | 12  | ❌ | ❌ |
 | 13  | ❌ | ❌ |
 | 14  | ❌ | ❌ |
