@@ -121,7 +121,7 @@ would make the following files from the template:
 | 13  | ✅ | ✅ |
 | 14  | ✅ | ✅ |
 | 15  | ✅ | ✅ |
-| 16  | ❌ | ❌ |
+| 16  | ✅ | ✅ |
 | 17  | ❌ | ❌ |
 
 </td><td valign="top">
