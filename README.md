@@ -119,7 +119,7 @@ would make the following files from the template:
 | 11  | ✅ | ✅ |
 | 12  | ✅ | ✅ |
 | 13  | ✅ | ✅ |
-| 14  | ❌ | ❌ |
+| 14  | ✅ | ✅ |
 | 15  | ❌ | ❌ |
 | 16  | ❌ | ❌ |
 | 17  | ❌ | ❌ |
