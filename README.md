@@ -120,7 +120,7 @@ would make the following files from the template:
 | 12  | ✅ | ✅ |
 | 13  | ✅ | ✅ |
 | 14  | ✅ | ✅ |
-| 15  | ❌ | ❌ |
+| 15  | ✅ | ✅ |
 | 16  | ❌ | ❌ |
 | 17  | ❌ | ❌ |
 
