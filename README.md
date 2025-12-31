@@ -129,7 +129,7 @@ would make the following files from the template:
 | Day | Part 1 | Part 2 |
 |:---:|:------:|:------:|
 | 18  | ✅ | ✅ |
-| 19  | ❌ | ❌ |
+| 19  | ✅ | ✅ |
 | 20  | ❌ | ❌ |
 | 21  | ❌ | ❌ |
 | 22  | ❌ | ❌ |
