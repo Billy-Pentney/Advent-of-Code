@@ -46,82 +46,20 @@ def find_border_pts(coords):
     return border
 
 
-def find_encoded_border(coords):
-    rows = defaultdict(list)
-    cols = defaultdict(list)
-
-    for i, curr in enumerate(coords):
-        x1,y1 = curr
-        x2,y2 = coords[(i+1) % len(coords)]
-        min_x, max_x = min(x1,x2), max(x1,x2)
-        min_y, max_y = min(y1,y2), max(y1,y2)
-
-        if x1 == x2:
-            x = x1
-            cols[x].append([min_y,max_y])
-            for y in range(min_y,max_y+1):
-                rows[y].append([x,x])
-                
-        else:
-            y = y1
-            rows[y].append([min_x,max_x])
-            for x in range(min_x,max_x+1):
-                cols[x].append([y,y])
-
-    rows_flat = {}
-    cols_flat = {}
-
-    for y, xs in rows.items():
-        xs = sorted(xs)
-        # print(y, xs)
-        xs_new = []
-        rows_flat[y] = xs_new
-        if len(xs) == 0:
-            continue
-        xs_new.append(xs[0])
-        for i in range(1, len(xs)):
-            a,b = xs[i]
-            # print(xs_new[-1], xs[i])
-            la,lb = xs_new[-1][0],xs_new[-1][1]
-            if a <= lb or la == lb or a == b:
-                xs_new[-1][1] = max(lb, b)
-            else:
-                xs_new.append(xs[i])
-        rows_flat[y] = np.array(xs_new)
-
-    for x, ys in cols.items():
-        ys = sorted(ys)
-        ys_new = []
-        cols_flat[x] = ys_new
-        if len(ys) == 0:
-            continue
-        ys_new.append(ys[0])
-        for i in range(1, len(ys)):
-            a,b = ys[i]
-            la,lb = ys_new[-1][0], ys_new[-1][1]
-            if a <= lb or la == lb or a == b:
-                ys_new[-1][1] = max(lb, b)
-            else:
-                ys_new.append(ys[i])
-        cols_flat[x] = np.array(ys_new)
-
-
-    return rows_flat, cols_flat
-
-
-
-def construct_grid_part_2(coords):
+def construct_grid_part_2(coords, border=None):
     max_vals = np.max(coords, axis=0)
     grid = np.zeros((max_vals[1]+2, max_vals[0]+2))
-    border = find_border_pts(coords)
-
-    for pt in border:
-        grid[pt[1],pt[0]] = GREEN
+    if border is None:
+        border = find_border_pts(coords)
+    if border:
+        for pt in border:
+            grid[pt[1],pt[0]] = GREEN
 
     for pt in coords:
         grid[pt[1],pt[0]] = RED
-
+        
     return grid
+
 
 code_to_sym = {
     ENCLOSED: '@',
@@ -244,7 +182,9 @@ def is_outside(pt, coords_lookup_by_row, coords_lookup_by_col, verbose=False):
     elif pt in known_inside:
         return False
     
+    
     x,y = pt
+
     if x in coords_lookup_by_row[y]:
         ## If this point is in the border
         return False
@@ -252,7 +192,7 @@ def is_outside(pt, coords_lookup_by_row, coords_lookup_by_col, verbose=False):
     ## Store if we saw a wall in each of the four cardinal directions
     walls_seen = [0,0,0,0]
 
-    row_keys = list(coords_lookup_by_row.keys())
+    row_keys = sorted(coords_lookup_by_row.keys())
 
     for d in [UP, DOWN]:
         for yr in row_keys:
@@ -271,12 +211,12 @@ def is_outside(pt, coords_lookup_by_row, coords_lookup_by_col, verbose=False):
             if walls_seen[d] > 0:
                 break
 
-    col_keys = list(coords_lookup_by_col.keys())
+    col_keys = sorted(coords_lookup_by_col.keys())
 
     for d in [LEFT, RIGHT]:
         for col in col_keys:
             if d == LEFT and col >= x:
-                continue
+                break
             elif d == RIGHT and col <= x:
                 continue
 
@@ -295,12 +235,8 @@ def is_outside(pt, coords_lookup_by_row, coords_lookup_by_col, verbose=False):
             if walls_seen[d] > 0:
                 break
 
-    # if verbose:
-    #     print(walls_seen)
-
     ## This point is only inside if all four directions face a wall
     outside = sum(walls_seen) < 4
-    # print(walls_seen)
     if outside:
         known_outside.add(pt)
     else:
@@ -310,17 +246,21 @@ def is_outside(pt, coords_lookup_by_row, coords_lookup_by_col, verbose=False):
 
 
 
+def make_lookup_dicts(points):
+    coords_lookup_by_row = defaultdict(dict)
+    coords_lookup_by_col = defaultdict(dict)
+    for i,(x,y) in enumerate(points):
+        coords_lookup_by_row[y][x] = i
+        coords_lookup_by_col[x][y] = i
+    return coords_lookup_by_row, coords_lookup_by_col
+
 
 
 def find_largest_rectangle_excluding(target_pts, box_to_exclude):
-    ## Index coords by column for faster lookup
-    coords_lookup_by_row = defaultdict(dict)
-    coords_lookup_by_col = defaultdict(dict)
-    for i,(x,y) in enumerate(target_pts):
-        coords_lookup_by_row[y][x] = i
-        coords_lookup_by_col[x][y] = i
-
     border = find_border_pts(target_pts)
+    ## Index coords by column for faster lookup
+    border_lookup_row, border_lookup_col = make_lookup_dicts(border)
+    coords_lookup_by_row, coords_lookup_by_col = make_lookup_dicts(target_pts)
 
     best_rects = []
     max_area = 0
@@ -365,8 +305,6 @@ def find_largest_rectangle_excluding(target_pts, box_to_exclude):
     print(f"Found {len(pairs_to_check)} pairs!")
     print_step = min(100, len(pairs_to_check) / 4)
 
-    ## ([4069, 63210], [96497, 64308])
-    ## 4, 63, 96, 64
 
     for i,(p1i,p2i) in enumerate(pairs_to_check):
         x1,y1 = target_pts[p1i]
@@ -378,7 +316,7 @@ def find_largest_rectangle_excluding(target_pts, box_to_exclude):
 
         area = estimate_area([p1i, p2i])
 
-        ## Early exit if this rectangle isn't a new best
+        ## Early exit if this rectangle can't be a new best
         if area <= max_area:
             continue
 
@@ -398,15 +336,13 @@ def find_largest_rectangle_excluding(target_pts, box_to_exclude):
             continue
 
         ## We only need to check if the two other corners are in
-        for x,y in [(x1,y2),(x2,y1)]:
-            if (x,y) in border:
-                continue
-            if is_outside((x,y), coords_lookup_by_row, coords_lookup_by_col):
-                is_valid = False
-                # print(f"{(x,y)} is out!")
-                break
+        points_to_check = [(x1,y2),(x2,y1)]
+        points_out_shape = sum([
+            1 for pt in points_to_check 
+            if pt not in border and is_outside(pt, border_lookup_row, border_lookup_col)
+        ])
 
-        if is_valid:
+        if points_out_shape == 0:
             print(f"\nNew best with area {area}")
             max_area = max(area, max_area)
             best_rects.append((p1i,p2i))
@@ -442,102 +378,6 @@ def find_largest_rectangle_excluding(target_pts, box_to_exclude):
     return max_area
 
 
-def find_largest_rectangle_part_2_narrow(target_pts, box_to_exclude):
-    ## Index coords by column for faster lookup
-    coords_lookup_by_row = defaultdict(dict)
-    coords_lookup_by_col = defaultdict(dict)
-    for i,(x,y) in enumerate(target_pts):
-        coords_lookup_by_row[y][x] = i
-        coords_lookup_by_col[x][y] = i
-
-    border = set(find_border_pts(target_pts))
-
-    excluded_mins = np.min(box_to_exclude, axis=0)
-    excluded_maxs = np.max(box_to_exclude, axis=0)
-    excl_x1, excl_y1 = excluded_mins[0], excluded_mins[1]
-    excl_x2, excl_y2 = excluded_maxs[0], excluded_maxs[1]
-    print(f"Excluded: x={excl_x1}-{excl_x2}, y={excl_y1}-{excl_y2}")
-
-    best_pair = []
-    max_area = 0
-    y1 = excl_y2
-    max_y = np.max(target_pts, axis=0)[1]
-    x1 = np.min(list(coords_lookup_by_row[y1].keys()))
-
-    while y1 < max_y:
-        coords_on_row = list(coords_lookup_by_row[y1].keys())
-        if len(coords_on_row) < 2:
-            break
-        
-        ## Find the widest rectangle with its top on row y1
-        x2 = np.max(coords_on_row)
-        y2 = y1
-        # print(f"Checking {x1},{y1} -> {x2},{y2}")
-
-        ## Now descend until either end point falls outside the shape
-        while (x1,y2+1) in border and (x2,y2+1) in border:
-            # print(f"Inc y2, {x1},{y1}, {x2},{y2}")
-            y2 += 1
-
-        print("Got:", x1,y1,x2,y2)
-        area = (1+y2-y1) * (1+x2-x1)
-        if area > max_area:
-            area = max_area
-            print(area)
-            best_pair = ((x1,y1),(x2,y2))
-
-        ## Jump to the next point
-        y1 = y2
-
-        while (x1,y1+1) in border:
-            # print(f"Inc y1, {x1},{y1}, {x2},{y2}")
-            y1+=1
-
-        last = DOWN
-
-        while (x1,y1+1) not in border:
-            # print(f"Inc x1, {x1},{y1}, {x2},{y2}")
-            # print("Next", x1+1, y1)
-            move_right = (x1+1,y1) in border
-            move_left = (x1-1,y1) in border
-            move_down = (x1,y1+1) in border
-            if move_down:
-                break
-            elif move_right:
-                last = RIGHT
-                x1 += 1
-            elif move_left and last != RIGHT:
-                last = LEFT
-                x1 -= 1
-            else:
-                break
-
-            # if x1 == 46:
-            #     grid = construct_grid_part_2(target_pts)
-            #     grid[y1,x1] = CORNER
-            #     display_grid(grid[y1-3:y1+3,x1-5:x1+5])
-            #     break
-    
-    scale_factor = 1
-    max_width = max(np.max(target_pts, axis=1))
-    display_width = 300
-    if max_width > display_width:
-        scale_factor = int(np.ceil(max_width / display_width))
-        target_pts = [tuple(np.array(pt) // scale_factor) for pt in target_pts]
-    grid = construct_grid_part_2(target_pts)
-    x1,y1 = tuple(np.array(best_pair[0]) // scale_factor)
-    x2,y2 = tuple(np.array(best_pair[1]) // scale_factor)
-    for xc in [x1,x2]:
-        for yc in [y1,y2]:
-            grid[yc,xc] = CORNER
-    display_grid(grid[y1-3:y2+5,x1-5:x1+5])
-
-    return max_area
-
-
-
-
-
 
 
 def find_indent(coords, width=10):
@@ -570,17 +410,38 @@ if __name__ == '__main__':
     #     largest_rect_area = find_largest_rectangle(coords)
     #     print("Part 1:", largest_rect_area)
 
-    if part == '2':
-        if fname != 'test.txt':
-            raise Exception("Part 2 solution is only designed for 'test.txt'!")
-        
-        scale_factor = 1
-        if scale_factor > 1:
-            coords = np.array(coords) // scale_factor
-            coords = coords.tolist()
-        simple_pts = simplify_coords(coords)
-        indent_corners = find_indent(simple_pts, 10000//scale_factor)
-        print("Indent corners:",indent_corners)
+    scale_factor = 1000
+    if scale_factor > 1:
+        coords = np.array(coords) // scale_factor
+        coords = coords.tolist()
+    simple_pts = simplify_coords(coords)
 
-        largest_enclosed_rect_area = find_largest_rectangle_excluding(coords, indent_corners)
-        print("Part 2:", largest_enclosed_rect_area)
+    border = find_border_pts(simple_pts)
+    grid = construct_grid_part_2(simple_pts, border)
+    grid[:,:] = BLANK
+    coords_lookup_by_row,coords_lookup_by_col = make_lookup_dicts(coords)
+    border_lookup_row, border_lookup_col = make_lookup_dicts(border)
+    for y in range(grid.shape[0]):
+        for x in range(grid.shape[1]):
+            if (x,y) in border:
+                grid[y,x] = ENCLOSED
+            elif is_outside((x,y), border_lookup_row, border_lookup_col):
+                grid[y][x] = CORNER
+            else :
+                grid[y,x] = BLANK
+    display_grid(grid)
+
+    # if part == '2':
+    #     if fname != 'test.txt':
+    #         raise Exception("Part 2 solution is only designed for 'test.txt'!")
+        
+    #     scale_factor = 1
+    #     if scale_factor > 1:
+    #         coords = np.array(coords) // scale_factor
+    #         coords = coords.tolist()
+    #     simple_pts = simplify_coords(coords)
+    #     indent_corners = find_indent(simple_pts, 10000//scale_factor)
+    #     print("Indent corners:",indent_corners)
+
+    #     largest_enclosed_rect_area = find_largest_rectangle_excluding(coords, indent_corners)
+    #     print("Part 2:", largest_enclosed_rect_area)
