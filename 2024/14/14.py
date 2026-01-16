@@ -1,7 +1,17 @@
 
+
+from sys import argv
+from os.path import exists
+from os import makedirs
+from time import sleep
+
+
 import regex as re
 import numpy as np
 
+
+
+## Matches a position and velocity e.g. "p=100,201 v=98,-1"
 robot_re = re.compile("p=(\d+),(\d+) v=(-?\d+),(-?\d+)")
 
 
@@ -22,7 +32,8 @@ def load(fname):
     return robots
 
 
-def robots_to_grid(robots, size):
+def convert_to_grid(robots, size):
+    """ Constructs a new 2D integer array describing the number of robots at each location in the grid. """
     grid = np.full(size, 0)
     for robot in robots:
         x,y,_,_  = robot
@@ -42,49 +53,36 @@ def part_one(robots, size, iters=100):
     for i in range(iters):
         for r, robot in enumerate(robots):
             (x,y,vx,vy) = robot
-            x_ = x+vx
-            y_ = y+vy
-
-            if x_ < 0:
-                x_ += cols
-            elif x_ >= cols:
-                x_ = x_ % cols
-            if y_ < 0:
-                y_ += rows
-            elif y_ >= rows:
-                y_ = y_ % rows
-            
+            x_ = (x+vx+cols)%cols
+            y_ = (y+vy+rows)%rows
             robots[r] = (x_,y_,vx,vy)
 
+   
+
+    grid = convert_to_grid(robots, size)
+
+    ## Now, count the number of robots in each quadrant
     hc = cols//2
     hr = rows//2
-    
+
     quadrants = [
         (0, hr, 0, hc),         ## Upper-left
         (rows-hr, rows, 0, hc), ## Lower-left
         (0, hr, cols-hc, cols), ## Upper-right
         (rows-hr, rows, cols-hc, cols)  ## Lower-right
     ]
-
-    grid = robots_to_grid(robots, size)
-    # print_grid(grid)
     quad_counts = [0,0,0,0]
 
     for i,quad in enumerate(quadrants):
         y1,y2,x1,x2 = quad
         quad_counts[i] = np.sum(grid[y1:y2,x1:x2])
-        # print(f"Quad {i+1} is:")
-        # print_grid(grid[y1:y2,x1:x2])
-        # print(f">> has {quad_counts[i]} robots")
 
-
-    # print(f"Quadrant counts: {quad_counts}")
     return np.product(quad_counts)
 
 
-from time import sleep
 
 def write_grid_to(grid, fname):
+    """ Saves a 2D array to the given filepath. """
     with open(fname, "w") as file:
         str_grid = ["".join(list(map(str, row)))+"\n" for row in grid]
         str_grid = [row.replace('0', '.') for row in str_grid]
@@ -92,6 +90,7 @@ def write_grid_to(grid, fname):
 
 
 def neighbours(x, y, rows, cols):
+    """ Get the adjacent neighbours of the given cell that are within the given bounds."""
     nbs = []
     if x >= 0:
         nbs.append((x-1,y))
@@ -104,49 +103,54 @@ def neighbours(x, y, rows, cols):
     return nbs
 
 
-def check_for_box(robots, grid):
-    rows = grid.shape[0]
-    cols = grid.shape[1]
 
 
-    for x,y,_,_ in robots:
-        seen = np.zeros(grid.shape)
-        queue = [(x,y)]
+def has_k_consecutive_ones(arr, k):
+    """ Check if the array contains a contiguous subarray with at least k '1's. """
 
-        ## BFS to find a loop
-        while len(queue) > 0:
-            cx,cy = queue[0]
-            queue = queue[1:]
-            ## Found a loop
-            if seen[cy][cx] == 1:
-                return True
-            
-            seen[cy][cx] = 1
-
-            for nb in neighbours(cx, cy, rows, cols):
-                if grid[cy][cx] > 0 and seen[cy][cx] == 0:
-                    queue.append(nb)
+    kernel = np.ones(k, dtype=int)
+    convolved = np.apply_along_axis(
+        lambda row: np.convolve(row, kernel, mode='valid'), axis=1, arr=arr
+    )
+    # Check if any value in the convolved array equals k
+    return np.any(convolved == k)
 
 
-    return False
+def check_for_tree(robots, size, start, end, delay_ms=1000, save_to=None):
+    """
+        Solves part 2 by running the simulation for the given iteration range and checking if a sufficient consecutive number of 1s is seen in any row of the grid.
 
+        Params
+        ---
+        robots: list
+            list of robots, 4-tuples (x,y,vx,vy) where x,y is the coordinates and vx,vy is the velocity vector
+        size: 2-tuple 
+            size of the grid, row-first
+        start: int
+            Number of iterations to run before checking for the tree
+        end: int
+            Maximum number of iterations before stopping
+        delay_ms: int
+            Number of milliseconds between each iteration.
+        save_to: str or None
+            Name of the directory to save the viable grids.
 
-def run_iterations(robots, size, start, end, delay_ms=1000, save_to=None):
-    # grid = robots_to_grid(robots, size)
+    """
 
-    rows = size[1]
-    cols = size[0]
+    if start > 0:
+        ## Skip the first (start) seconds
+        for r,robot in enumerate(robots):
+            x,y,vx,vy = robot
+            nx = (start * (x+vx)) % size[0]
+            ny = (start * (y+vy)) % size[1]
+            robots[r] = (nx,ny,vx,vy)
 
-    for r,robot in enumerate(robots):
-        x,y,vx,vy = robot
-        nx = ((start+1) * (x+vx)) % size[0]
-        ny = ((start+1) * (y+vy)) % size[1]
-        robots[r] = (nx,ny,vx,vy)
+    # Delay in seconds
+    delay = delay_ms / 1000
 
-    min_var = None
-
+    # Run the remaining iterations
     for i in range(start, end):
-        if i % 1000 == 0:
+        if (i+1) % 1000 == 0:
             print(f"ITERATION {i+1}")
 
         for r,robot in enumerate(robots):
@@ -155,23 +159,23 @@ def run_iterations(robots, size, start, end, delay_ms=1000, save_to=None):
             ny = (y+vy+size[1]) % size[1]
             robots[r] = (nx,ny,vx,vy)
 
-        grid = robots_to_grid(robots, size)
+        grid = convert_to_grid(robots, size)
       
-        var_x = np.std(np.array(robots)[:,0])
-        var_y = np.std(np.array(robots)[:,1])
-        var = var_x * var_y
+        # Check for a string which has at least 25 ones in a line
+        potential_tree = has_k_consecutive_ones(grid, 25)
 
-        if min_var is None or var < min_var:
-            min_var = var
-            print(f"{i+1}: {min_var}")
-            print_grid(grid)
+        if potential_tree:
+            print(f" >> Potential tree at iteration {i+1}!")
             if save_to is not None:
                 fname = f"{save_to}/{i}.txt"
                 write_grid_to(grid, fname)
+                print(f"Written {i+1} to:",fname)
 
-        sleep(delay_ms/1000.0)
+        sleep(delay)
 
     print(f"Completed iterations {start} to {end}!")
+
+
 
 
 def print_grid(grid):
@@ -180,9 +184,8 @@ def print_grid(grid):
         print("".join(s).replace("0", '.'))
 
 
-from sys import argv
-from os.path import exists
-from os import makedirs
+
+
 
 if __name__ == '__main__':
     fname = argv[1]
@@ -195,15 +198,20 @@ if __name__ == '__main__':
     # print("Initial Positions:")
     # print_grid(robots_to_grid(robots, size))
     # print()
-    # p1 = part_one(robots,size)
-    # print(f"(Part 1) Robot Quadrant Product: {p1}")
+
+    p1 = part_one(robots, size)
+    print(f"(Part 1) Robot Quadrant Product: {p1}")
 
     ## Part 2
+
+    # Reload as the first part will have changed the robot positions
+    robots = load(fname)
+
     fdir = f'part_two/{fname}'
     if not exists(fdir):
         makedirs(fdir, exist_ok=True)
 
-    ## User input for iteration range in form "START END"
+    ## Receive user input for iteration range in form "START END"
     response = input("Iteration for part 2? ")    
     splits = response.split(" ")
     start = 0
@@ -218,4 +226,4 @@ if __name__ == '__main__':
     delay_ms = (max(0, int(delay_ms)))
 
     ## Run the simulation for the given number of iterations, saving any with the minimum variance
-    run_iterations(robots, size, start, end, delay_ms, save_to=fdir)
+    check_for_tree(robots, size, start, end, delay_ms, save_to=fdir)
